@@ -17,6 +17,10 @@
   transition: transform 120ms ease-out;
 }
 
+.map-zoom-viewport--panning > svg {
+  transition: none;
+}
+
 .map-zoom-reset {
   display: none;
   width: 32px;

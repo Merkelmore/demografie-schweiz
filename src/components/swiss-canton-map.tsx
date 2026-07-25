@@ -60,6 +60,7 @@ const viewBoxWidth = 640;
 const viewBoxHeight = 350;
 const bounds = { maxLatitude: 47.82, maxLongitude: 10.52, minLatitude: 45.8, minLongitude: 5.94 };
 const maximumMapZoom = 3;
+const panActivationDistance = 6;
 
 function project([longitude, latitude]: Position) {
   const x = ((longitude - bounds.minLongitude) / (bounds.maxLongitude - bounds.minLongitude)) * viewBoxWidth;
@@ -99,9 +100,13 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
   const [features, setFeatures] = useState<CantonFeature[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
-  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
+  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
   const mapZoomRef = useRef(1);
+  const mapOffsetRef = useRef({ x: 0, y: 0 });
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const panRef = useRef<{ moved: boolean; startX: number; startY: number; x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
   const numericValues = values ? Object.values(values) : [];
   const hasValues = numericValues.length > 0;
   const minimumValue = valueDomain?.[0] ?? Math.min(...numericValues);
@@ -143,36 +148,75 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
     const clampedZoom = Math.max(1, Math.min(maximumMapZoom, nextZoom));
     mapZoomRef.current = clampedZoom;
     setMapZoom(clampedZoom);
+    if (clampedZoom === 1) setOffset({ x: 0, y: 0 });
   }
 
-  function startPinch(event: TouchEvent<HTMLDivElement>) {
+  function setOffset(nextOffset: { x: number; y: number }) {
+    mapOffsetRef.current = nextOffset;
+    setMapOffset(nextOffset);
+  }
+
+  function touchPoint(touch: TouchEvent<HTMLDivElement>["touches"][number]) {
+    return { x: touch.clientX, y: touch.clientY };
+  }
+
+  function clampOffset(nextOffset: { x: number; y: number }, viewport: HTMLDivElement) {
+    const bounds = viewport.getBoundingClientRect();
+    const maximumX = (bounds.width * (mapZoomRef.current - 1)) / 2;
+    const maximumY = (bounds.height * (mapZoomRef.current - 1)) / 2;
+    return {
+      x: Math.max(-maximumX, Math.min(maximumX, nextOffset.x)),
+      y: Math.max(-maximumY, Math.min(maximumY, nextOffset.y)),
+    };
+  }
+
+  function startTouch(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length === 1) {
+      const touch = touchPoint(event.touches[0]);
+      panRef.current = { moved: false, startX: touch.x, startY: touch.y, x: mapOffsetRef.current.x, y: mapOffsetRef.current.y };
+      return;
+    }
+
     if (event.touches.length !== 2) return;
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const midpointX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-    const midpointY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
-    setZoomOrigin(`${((midpointX - bounds.left) / bounds.width) * 100}% ${((midpointY - bounds.top) / bounds.height) * 100}%`);
+    panRef.current = null;
     pinchRef.current = { distance: touchDistance(event.touches), zoom: mapZoomRef.current };
   }
 
-  function zoomMap(event: TouchEvent<HTMLDivElement>) {
-    if (event.touches.length !== 2 || !pinchRef.current) return;
+  function moveTouch(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length === 2 && pinchRef.current) {
+      setZoom(pinchRef.current.zoom * (touchDistance(event.touches) / pinchRef.current.distance));
+      return;
+    }
 
-    setZoom(pinchRef.current.zoom * (touchDistance(event.touches) / pinchRef.current.distance));
+    if (event.touches.length !== 1 || !panRef.current || mapZoomRef.current === 1) return;
+
+    const touch = touchPoint(event.touches[0]);
+    const nextOffset = clampOffset({ x: panRef.current.x + touch.x - panRef.current.startX, y: panRef.current.y + touch.y - panRef.current.startY }, event.currentTarget);
+    if (Math.hypot(touch.x - panRef.current.startX, touch.y - panRef.current.startY) >= panActivationDistance) {
+      panRef.current.moved = true;
+      setIsPanning(true);
+    }
+    setOffset(nextOffset);
   }
 
-  function endPinch(event: TouchEvent<HTMLDivElement>) {
+  function endTouch(event: TouchEvent<HTMLDivElement>) {
     if (event.touches.length < 2) pinchRef.current = null;
+    if (event.touches.length === 0) {
+      suppressClickRef.current = panRef.current?.moved ?? false;
+      panRef.current = null;
+      setIsPanning(false);
+    }
   }
 
   function resetZoom() {
-    setZoomOrigin("50% 50%");
     setZoom(1);
+    setOffset({ x: 0, y: 0 });
   }
 
   return (
-    <div className="map-zoom-viewport" onTouchEnd={endPinch} onTouchMove={zoomMap} onTouchStart={startPinch}>
-      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label="Interaktive Karte der Schweizer Kantone" style={{ transform: `scale(${mapZoom})`, transformOrigin: zoomOrigin }}>
+    <div className={`map-zoom-viewport ${isPanning ? "map-zoom-viewport--panning" : ""}`} onTouchEnd={endTouch} onTouchMove={moveTouch} onTouchStart={startTouch}>
+      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label="Interaktive Karte der Schweizer Kantone" style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapZoom})` }}>
         {features.map((feature, index) => {
         const sourceName = feature.properties.kan_name[0];
         const code = codesByName[sourceName];
@@ -200,10 +244,12 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
             role="button"
             style={{ "--region-index": index, "--region-lightness": `${lightness}%` } as React.CSSProperties}
             tabIndex={0}
-            onClick={() => onSelect(cantonCode)}
-            onFocus={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              reportHover({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+            onClick={() => {
+              if (suppressClickRef.current) {
+                suppressClickRef.current = false;
+                return;
+              }
+              onSelect(cantonCode);
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -211,9 +257,12 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
                 onSelect(cantonCode);
               }
             }}
-            onBlur={() => onLeave?.(cantonCode)}
-            onPointerEnter={(event) => reportHover({ x: event.clientX, y: event.clientY })}
-            onPointerLeave={() => onLeave?.(cantonCode)}
+            onPointerEnter={(event) => {
+              if (event.pointerType === "mouse") reportHover({ x: event.clientX, y: event.clientY });
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType === "mouse") onLeave?.(cantonCode);
+            }}
           />
         );
         })}
