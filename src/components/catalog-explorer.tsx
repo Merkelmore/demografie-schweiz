@@ -240,7 +240,7 @@ export function CatalogExplorer() {
         </div>
       </header>
       <main className="map-explorer" aria-label="Interaktive Karte der Schweizer Kantone">
-        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={pinnedCode ?? hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.2, 0.2] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
+        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={pinnedCode ?? hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
         {mapError && <span className="map-availability">{mapError}</span>}
         {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
 
