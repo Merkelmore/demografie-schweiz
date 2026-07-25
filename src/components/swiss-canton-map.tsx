@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { RotateCcw } from "lucide-react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 
 import { getCanton, type Language } from "@/lib/cantons";
 
@@ -58,6 +59,7 @@ const codesByName: Record<string, string> = {
 const viewBoxWidth = 640;
 const viewBoxHeight = 350;
 const bounds = { maxLatitude: 47.82, maxLongitude: 10.52, minLatitude: 45.8, minLongitude: 5.94 };
+const maximumMapZoom = 3;
 
 function project([longitude, latitude]: Position) {
   const x = ((longitude - bounds.minLongitude) / (bounds.maxLongitude - bounds.minLongitude)) * viewBoxWidth;
@@ -96,6 +98,10 @@ type SwissCantonMapProps = {
 export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedCode, valueDomain, values }: SwissCantonMapProps) {
   const [features, setFeatures] = useState<CantonFeature[]>([]);
   const [loadError, setLoadError] = useState(false);
+  const [mapZoom, setMapZoom] = useState(1);
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
+  const mapZoomRef = useRef(1);
+  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const numericValues = values ? Object.values(values) : [];
   const hasValues = numericValues.length > 0;
   const minimumValue = valueDomain?.[0] ?? Math.min(...numericValues);
@@ -129,9 +135,46 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
     return <p className="map-status" aria-live="polite">Kantonskarte wird geladen …</p>;
   }
 
+  function touchDistance(touches: TouchEvent<HTMLDivElement>["touches"]) {
+    return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+  }
+
+  function setZoom(nextZoom: number) {
+    const clampedZoom = Math.max(1, Math.min(maximumMapZoom, nextZoom));
+    mapZoomRef.current = clampedZoom;
+    setMapZoom(clampedZoom);
+  }
+
+  function startPinch(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 2) return;
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const midpointX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+    const midpointY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+    setZoomOrigin(`${((midpointX - bounds.left) / bounds.width) * 100}% ${((midpointY - bounds.top) / bounds.height) * 100}%`);
+    pinchRef.current = { distance: touchDistance(event.touches), zoom: mapZoomRef.current };
+  }
+
+  function zoomMap(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 2 || !pinchRef.current) return;
+
+    event.preventDefault();
+    setZoom(pinchRef.current.zoom * (touchDistance(event.touches) / pinchRef.current.distance));
+  }
+
+  function endPinch(event: TouchEvent<HTMLDivElement>) {
+    if (event.touches.length < 2) pinchRef.current = null;
+  }
+
+  function resetZoom() {
+    setZoomOrigin("50% 50%");
+    setZoom(1);
+  }
+
   return (
-    <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label="Interaktive Karte der Schweizer Kantone">
-      {features.map((feature, index) => {
+    <div className="map-zoom-viewport" onTouchEnd={endPinch} onTouchMove={zoomMap} onTouchStart={startPinch}>
+      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label="Interaktive Karte der Schweizer Kantone" style={{ transform: `scale(${mapZoom})`, transformOrigin: zoomOrigin }}>
+        {features.map((feature, index) => {
         const sourceName = feature.properties.kan_name[0];
         const code = codesByName[sourceName];
         const canton = code ? getCanton(code) : undefined;
@@ -174,7 +217,9 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
             onPointerLeave={() => onLeave?.(cantonCode)}
           />
         );
-      })}
-    </svg>
+        })}
+      </svg>
+      {mapZoom > 1 && <button className="map-zoom-reset" type="button" aria-label="Kartenansicht zurücksetzen" title="Kartenansicht zurücksetzen" onClick={resetZoom}><RotateCcw size={16} /></button>}
+    </div>
   );
 }

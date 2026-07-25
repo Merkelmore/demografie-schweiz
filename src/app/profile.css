@@ -102,9 +102,15 @@
   height: min(72dvh, 610px);
 }
 
-.map-canvas--full > svg {
+.map-canvas--full > .map-zoom-viewport {
   width: auto;
   max-width: 100%;
+  height: 100%;
+  aspect-ratio: 640 / 350;
+}
+
+.map-canvas--full .map-zoom-viewport > svg {
+  width: 100%;
   height: 100%;
   max-height: none;
 }
@@ -519,7 +525,12 @@
   }
 
   .map-canvas--full,
-  .map-canvas--full > svg {
+  .map-canvas--full > .map-zoom-viewport {
+    width: 100%;
+    height: auto;
+  }
+
+  .map-canvas--full .map-zoom-viewport > svg {
     width: 100%;
     height: auto;
   }
