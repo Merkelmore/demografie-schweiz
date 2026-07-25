@@ -20,7 +20,10 @@ export function createDatabasePool() {
   const configuredUrl = process.env.DATABASE_URL;
   if (configuredUrl) {
     const parsedUrl = new URL(configuredUrl);
-    if (process.env.NODE_ENV === "production") parsedUrl.searchParams.set("sslmode", "require");
+    if (process.env.NODE_ENV === "production") {
+      parsedUrl.searchParams.set("sslmode", "require");
+      parsedUrl.searchParams.set("uselibpqcompat", "true");
+    }
     return new Pool({
       connectionString: parsedUrl.toString(),
       connectionTimeoutMillis: 5_000,

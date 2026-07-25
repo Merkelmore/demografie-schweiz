@@ -35,7 +35,7 @@ scp .\catalog.dump DEPLOY_USER@SERVER_IP:/home/DEPLOY_USER/
 
 ### 2. Prepare Supabase
 
-In Supabase, copy the direct PostgreSQL connection string for the restore and the session-pooler connection string for runtime. The runtime URL normally uses port `5432`; set `sslmode=require`. Do not use a pooler URL for `pg_restore` unless Supabase explicitly documents it as supported for restores.
+In Supabase, copy the direct PostgreSQL connection string for the restore and the session-pooler connection string for runtime. The runtime URL normally uses port `5432`; append `sslmode=require&uselibpqcompat=true`. This keeps the connection encrypted while using PostgreSQL's standard `require` behavior for the shared pooler's certificate chain. Do not use a pooler URL for `pg_restore` unless Supabase explicitly documents it as supported for restores.
 
 Run the restore once from a trusted machine with Docker. Set `SUPABASE_DIRECT_DATABASE_URL` directly in that terminal, then execute:
 
@@ -76,7 +76,7 @@ nano .env.production
 Set these values in `.env.production`:
 
 ```dotenv
-DATABASE_URL=postgresql://...pooler.supabase.com:5432/postgres?sslmode=require
+DATABASE_URL=postgresql://...pooler.supabase.com:5432/postgres?sslmode=require&uselibpqcompat=true
 PG_POOL_MAX=5
 NODE_ENV=production
 PORT=3000

@@ -46,6 +46,7 @@ function databaseUrl() {
 
     const parsedUrl = new URL(configuredUrl);
     parsedUrl.searchParams.set("sslmode", "require");
+    parsedUrl.searchParams.set("uselibpqcompat", "true");
     return parsedUrl.toString();
   }
 
