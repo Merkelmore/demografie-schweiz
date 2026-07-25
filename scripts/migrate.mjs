@@ -8,6 +8,16 @@ const migrationsDirectory = resolve("db/migrations");
 const showStatus = process.argv.includes("--status");
 const pool = createDatabasePool();
 
+function checksumFor(sql) {
+  return createHash("sha256").update(sql.replace(/\r\n/g, "\n")).digest("hex");
+}
+
+function hasLegacyLineEndingChecksum(recordedChecksum, sql) {
+  const normalizedSql = sql.replace(/\r\n/g, "\n");
+  const crlfChecksum = createHash("sha256").update(normalizedSql.replace(/\n/g, "\r\n")).digest("hex");
+  return recordedChecksum === crlfChecksum;
+}
+
 async function run() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migration (
@@ -31,11 +41,16 @@ async function run() {
 
   for (const filename of migrationFiles) {
     const sql = await readFile(resolve(migrationsDirectory, filename), "utf8");
-    const checksum = createHash("sha256").update(sql).digest("hex");
+    const checksum = checksumFor(sql);
     const recordedChecksum = applied.get(filename);
 
     if (recordedChecksum) {
-      if (recordedChecksum !== checksum) throw new Error(`Migration changed after application: ${filename}`);
+      if (recordedChecksum === checksum) continue;
+      if (!hasLegacyLineEndingChecksum(recordedChecksum, sql)) {
+        throw new Error(`Migration changed after application: ${filename}`);
+      }
+      await pool.query("UPDATE schema_migration SET checksum = $2 WHERE filename = $1", [filename, checksum]);
+      console.log(`Normalized checksum for ${filename}`);
       continue;
     }
 
