@@ -1,10 +1,10 @@
 "use client";
 
-import { Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
+import { BookOpen, Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
-import type { CantonCardResponse, MapResponse } from "@/lib/catalog";
+import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
 
 const number = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
 
@@ -25,6 +25,7 @@ const hoverDelay = 180;
 type Metric = CantonCardResponse["metrics"][number];
 type CategoryCode = (typeof categories)[number]["code"];
 type CachedCard = { expiresAt: number; value: CantonCardResponse };
+type Source = { metric: string; referenceDate: string | null; title: string; url: string };
 
 function formatMetric(metric?: Metric) {
   if (!metric || metric.value === null) return metric?.unavailableReason ?? "Nicht importiert";
@@ -56,6 +57,9 @@ export function CatalogExplorer() {
   const [pinnedCode, setPinnedCode] = useState<string | null>(null);
   const [cardPosition, setCardPosition] = useState({ x: 24, y: 76 });
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
+  const [sources, setSources] = useState<Source[]>();
+  const [sourcesError, setSourcesError] = useState<string>();
   const [card, setCard] = useState<CantonCardResponse>();
   const [map, setMap] = useState<MapResponse>();
   const [cardError, setCardError] = useState<string>();
@@ -112,6 +116,32 @@ export function CatalogExplorer() {
 
     return () => controller.abort();
   }, [activeCode]);
+
+  useEffect(() => {
+    if (!isSourcesOpen || sources) return;
+
+    const controller = new AbortController();
+    fetch("/api/catalog?canton=ZH", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? "Die Quellen konnten nicht geladen werden.");
+        return response.json() as Promise<CatalogResponse>;
+      })
+      .then((catalog) => {
+        const uniqueSources = new Map<string, Source>();
+        for (const metric of catalog.metrics) {
+          if (!metric.source) continue;
+          const source = { metric: metric.name, referenceDate: metric.referenceDate, title: metric.source.title, url: metric.source.url };
+          uniqueSources.set(`${source.metric}:${source.title}:${source.url}`, source);
+        }
+        setSources([...uniqueSources.values()].sort((left, right) => left.metric.localeCompare(right.metric, "de")));
+        setSourcesError(undefined);
+      })
+      .catch((requestError: unknown) => {
+        if ((requestError as { name?: string }).name !== "AbortError") setSourcesError(requestError instanceof Error ? requestError.message : "Die Quellen konnten nicht geladen werden.");
+      });
+
+    return () => controller.abort();
+  }, [isSourcesOpen, sources]);
 
   useEffect(() => {
     function dismissPinnedCard(event: KeyboardEvent) {
@@ -205,11 +235,12 @@ export function CatalogExplorer() {
           <label className="global-category global-category--mobile"><MapIcon className="global-category__icon" size={15} /><select aria-label="Kartenkategorie" value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.shortLabel}</option>)}</select><ChevronDown size={14} /></label>
         </div>
         <div className="site-header__actions">
-          <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />Berechnung</button>
+          <button className="methodology-trigger" type="button" onClick={() => setIsSourcesOpen(true)}><BookOpen size={15} />Quellen</button>
+          <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />Was ist Cultural Enrichment Score?</button>
         </div>
       </header>
       <main className="map-explorer" aria-label="Interaktive Karte der Schweizer Kantone">
-        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={pinnedCode ?? hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-1, 1] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
+        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={pinnedCode ?? hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.2, 0.2] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
         {mapError && <span className="map-availability">{mapError}</span>}
         {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
 
@@ -232,6 +263,7 @@ export function CatalogExplorer() {
         </aside>}
       </main>
       <footer className="site-footer"><span>BFS · SEM · Lokaler Datenkatalog</span><span>2026</span></footer>
+      {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>DATENGRUNDLAGEN</span><h2 id="sources-title">Quellen</h2></div><button type="button" aria-label="Quellen schliessen" onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">Quellen werden geladen …</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{source.metric}</strong><span>{source.title}{source.referenceDate ? ` · Stand ${source.referenceDate}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">Originalquelle öffnen</a> : <span className="sources-list__local">Lokale Berechnung aus den genannten Datenquellen</span>}</li>)}</ul>}</section></div>}
       {isMethodologyOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsMethodologyOpen(false)}><section className="methodology-dialog" role="dialog" aria-modal="true" aria-labelledby="methodology-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>BERECHNUNG</span><h2 id="methodology-title">Cultural Enrichment Score</h2></div><button type="button" aria-label="Berechnung schliessen" onClick={() => setIsMethodologyOpen(false)}><X size={18} /></button></div><p>Nicht amtlicher Kompositindex. Alle vier Faktoren werden über die aktuell verfügbaren Kantone auf 0 bis 100 normiert und zählen gleich stark.</p><p className="methodology-formula">CES = 0.25 × (Kriminalität + offene Asylverfahren + ausländische Bevölkerung + Erwerbslosenquote)</p><ul><li>Kriminalität pro 100&apos;000: 2025</li><li>Offene Asylverfahren pro 1&apos;000: 30.06.2026</li><li>Ausländische Bevölkerung: 2024</li><li>BFS-Erwerbslosenquote: 2024</li></ul><p>Höhere Werte bedeuten nur höhere normierte Werte dieser vier Faktoren. Für Appenzell Innerrhoden wird kein Score angezeigt, weil BFS die Erwerbslosenquote 2024 nicht veröffentlicht hat.</p></section></div>}
     </div>
   );

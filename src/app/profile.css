@@ -270,6 +270,54 @@
   box-shadow: 0 18px 42px rgba(23, 42, 58, 0.2);
 }
 
+.sources-dialog {
+  max-height: min(640px, calc(100dvh - 36px));
+  overflow-y: auto;
+}
+
+.sources-dialog__loading {
+  margin: 18px;
+  color: #65727d;
+  font-size: 13px;
+}
+
+.sources-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sources-list li {
+  display: grid;
+  gap: 4px;
+  padding: 13px 18px;
+  border-bottom: 1px solid #e3e8eb;
+}
+
+.sources-list strong {
+  color: #172a3a;
+  font-size: 12px;
+}
+
+.sources-list span,
+.sources-list a {
+  color: #65727d;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sources-list a {
+  width: fit-content;
+  color: #8b2028;
+  font-weight: 700;
+}
+
+.sources-list__local {
+  font-style: italic;
+}
+
 .methodology-dialog > p,
 .methodology-dialog > ul {
   margin: 16px 18px;
