@@ -11,7 +11,7 @@ Before the first deployment, the following must be available:
 - A domain or subdomain, for example `radar.example.ch`.
 - A Hetzner server with a public IPv4 address.
 - An empty Supabase project with a database password set.
-- Two Supabase connection strings kept outside this repository: the **direct** connection for the one-off restore and the **transaction pooler** connection for application runtime. Both require TLS.
+- Two Supabase connection strings kept outside this repository: the **direct** connection for the one-off restore and the **session pooler** connection for application runtime. Both require TLS.
 
 Do not place either connection string in a ticket, chat, commit, or screenshot. Enter them only in a local terminal or the server's restricted environment file.
 
@@ -35,7 +35,7 @@ scp .\catalog.dump DEPLOY_USER@SERVER_IP:/home/DEPLOY_USER/
 
 ### 2. Prepare Supabase
 
-In Supabase, copy the direct PostgreSQL connection string for the restore and the transaction-pooler connection string for runtime. The runtime URL normally uses port `6543`; set `sslmode=require`. Do not use a pooler URL for `pg_restore` unless Supabase explicitly documents it as supported for restores.
+In Supabase, copy the direct PostgreSQL connection string for the restore and the session-pooler connection string for runtime. The runtime URL normally uses port `5432`; set `sslmode=require`. Do not use a pooler URL for `pg_restore` unless Supabase explicitly documents it as supported for restores.
 
 Run the restore once from a trusted machine with Docker. Set `SUPABASE_DIRECT_DATABASE_URL` directly in that terminal, then execute:
 
@@ -63,7 +63,7 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-Clone the repository on the server and create a production-only environment file. The runtime database URL must be the Supabase **transaction-pooler** URL, not the direct restore URL.
+Clone the repository on the server and create a production-only environment file. The runtime database URL must be the Supabase **session-pooler** URL, not the direct restore URL.
 
 ```bash
 git clone REPOSITORY_URL cultural-enrichment-radar
@@ -76,7 +76,7 @@ nano .env.production
 Set these values in `.env.production`:
 
 ```dotenv
-DATABASE_URL=postgresql://...pooler.supabase.com:6543/postgres?sslmode=require
+DATABASE_URL=postgresql://...pooler.supabase.com:5432/postgres?sslmode=require
 PG_POOL_MAX=5
 NODE_ENV=production
 PORT=3000
