@@ -21,6 +21,9 @@ services:
 
   migrate:
     image: cultural-enrichment-radar:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: ["node", "scripts/migrate.mjs"]
     env_file:
       - ${ENV_FILE:-.env.production}
