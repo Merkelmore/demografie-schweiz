@@ -1,0 +1,379 @@
+.map-explorer {
+  position: relative;
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(24px, 5vw, 72px);
+  background-color: var(--paper);
+  background-image: linear-gradient(rgba(31, 91, 79, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(31, 91, 79, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.map-canvas--full {
+  display: grid;
+  width: min(100%, 1120px);
+  min-height: min(78dvh, 680px);
+  place-items: center;
+}
+
+.map-canvas--full > svg {
+  width: 100%;
+  height: min(78dvh, 680px);
+  max-height: none;
+}
+
+.detail-panel {
+  position: fixed;
+  z-index: 2;
+  inset: 0 0 0 auto;
+  display: flex;
+  width: min(100%, 430px);
+  flex-direction: column;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: #fcfcf7;
+  box-shadow: -18px 0 36px rgba(25, 43, 39, 0.13);
+}
+
+.detail-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 30px 30px 25px;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-panel__header h1,
+.detail-panel__content h2 {
+  margin: 7px 0 0;
+  font-family: var(--font-fraunces), serif;
+  font-weight: 560;
+}
+
+.detail-panel__header h1 {
+  font-size: 31px;
+  line-height: 1.05;
+}
+
+.close-button {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.close-button:hover,
+.close-button:focus-visible {
+  border-color: var(--ink);
+  outline: none;
+}
+
+.detail-panel__controls {
+  display: grid;
+  gap: 16px;
+  padding: 25px 30px;
+  border-bottom: 1px solid var(--line);
+  background: #f5f5ee;
+}
+
+.detail-panel .field {
+  position: relative;
+  display: grid;
+  gap: 7px;
+}
+
+.detail-panel .field > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detail-panel .field select {
+  width: 100%;
+  min-height: 42px;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  padding: 9px 36px 9px 12px;
+}
+
+.detail-panel .field svg {
+  position: absolute;
+  right: 12px;
+  bottom: 13px;
+  pointer-events: none;
+}
+
+.detail-panel__content {
+  padding: 28px 30px 34px;
+}
+
+.detail-panel__content h2 {
+  font-size: 25px;
+  line-height: 1.14;
+}
+
+.detail-panel .metric-list {
+  display: grid;
+  gap: 0;
+  margin-top: 24px;
+}
+
+.detail-panel .metric {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.detail-panel .metric > span,
+.detail-panel .metric p,
+.detail-panel .reference p,
+.detail-panel .source {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detail-panel .metric strong {
+  display: block;
+  margin: 4px 0;
+  font-size: 23px;
+  line-height: 1.15;
+}
+
+.detail-panel .metric p + p {
+  margin-top: 5px;
+}
+
+.detail-panel .reference {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.detail-panel .reference p {
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .map-explorer {
+    padding: 18px;
+  }
+
+  .map-canvas--full,
+  .map-canvas--full > svg {
+    min-height: 0;
+    height: auto;
+  }
+
+  .detail-panel {
+    inset: auto 0 0;
+    width: 100%;
+    max-height: 82dvh;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -14px 32px rgba(25, 43, 39, 0.14);
+  }
+
+  .detail-panel__header,
+  .detail-panel__controls,
+  .detail-panel__content {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+}
+
+/* Compact map workspace overrides. */
+.map-page {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-rows: 38px minmax(0, 1fr) 28px;
+  background: #f7f8f6;
+}
+
+.site-header,
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-color: var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+}
+
+.map-explorer {
+  min-height: 0;
+  padding: clamp(12px, 2.5vw, 32px);
+  background: #f7f8f6;
+  background-image: none;
+}
+
+.map-canvas--full {
+  width: min(100%, 1020px);
+  min-height: 0;
+}
+
+.map-canvas--full > svg {
+  height: min(68dvh, 580px);
+}
+
+.detail-panel {
+  position: absolute;
+  width: min(100%, 360px);
+  border-left: 1px solid var(--line);
+  background: #fff;
+  box-shadow: none;
+}
+
+.detail-panel__header {
+  gap: 12px;
+  padding: 16px 18px 14px;
+}
+
+.detail-panel__header h1,
+.detail-panel__content h2 {
+  font-family: var(--font-dm-sans), sans-serif;
+  font-weight: 700;
+}
+
+.detail-panel__header h1 {
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.close-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 2px;
+}
+
+.detail-panel__controls {
+  gap: 0;
+  padding: 12px 18px;
+  background: #f7f8f6;
+}
+
+.detail-panel .field {
+  gap: 5px;
+}
+
+.detail-panel .field > span {
+  font-size: 11px;
+}
+
+.detail-panel .field select {
+  min-height: 36px;
+  border-radius: 2px;
+  padding: 7px 30px 7px 9px;
+  font-size: 13px;
+}
+
+.detail-panel .field svg {
+  right: 9px;
+  bottom: 10px;
+}
+
+.detail-panel__content {
+  padding: 17px 18px 20px;
+}
+
+.detail-panel__content h2 {
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.detail-panel .metric-list {
+  margin-top: 15px;
+}
+
+.detail-panel .metric {
+  padding: 10px 0;
+}
+
+.detail-panel .metric > span,
+.detail-panel .metric p,
+.detail-panel .reference p,
+.detail-panel .source {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.detail-panel .metric strong {
+  margin: 2px 0;
+  font-size: 18px;
+}
+
+.detail-panel .metric p + p {
+  margin-top: 3px;
+}
+
+.detail-panel .reference {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  background: transparent;
+}
+
+.detail-panel .reference p {
+  margin-top: 5px;
+}
+
+@media (max-width: 640px) {
+  .map-page {
+    grid-template-rows: 34px minmax(0, 1fr) 26px;
+  }
+
+  .site-header,
+  .site-footer {
+    padding: 0 12px;
+    font-size: 10px;
+  }
+
+  .map-explorer {
+    padding: 12px;
+  }
+
+  .map-canvas--full > svg {
+    height: auto;
+  }
+
+  .detail-panel {
+    position: absolute;
+    inset: auto 0 0;
+    width: 100%;
+    max-height: 78dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .detail-panel__header,
+  .detail-panel__controls,
+  .detail-panel__content {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+}

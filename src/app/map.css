@@ -1,0 +1,61 @@
+.map-canvas {
+  display: grid;
+  place-items: center;
+}
+
+.map-canvas > svg {
+  width: min(100%, 760px);
+  height: auto;
+  max-height: 430px;
+}
+
+.map-region {
+  --region-index: 0;
+  cursor: pointer;
+  fill: hsl(2 58% var(--region-lightness, 88%));
+  stroke: #f7f8f6;
+  stroke-linejoin: round;
+  stroke-width: 1.35;
+  transition: fill 150ms ease, stroke 150ms ease, stroke-width 150ms ease;
+}
+
+.map-region:hover,
+.map-region:focus-visible {
+  fill: #bc3540;
+  outline: none;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+}
+
+.map-region.selected {
+  fill: #65161d;
+  stroke: var(--ink);
+  stroke-width: 2.4;
+}
+
+.map-status {
+  display: grid;
+  min-height: 260px;
+  margin: 0;
+  place-items: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.legend {
+  pointer-events: none;
+}
+
+.chart-placeholder {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 18px 0;
+}
+
+.chart-placeholder p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}

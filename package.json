@@ -6,21 +6,39 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "data:population": "node scripts/import-population.mjs",
+    "data:population:db": "node scripts/import-population-to-db.mjs",
+    "data:nationality:db": "node scripts/import-nationality-to-db.mjs",
+    "data:age:db": "node scripts/import-age-to-db.mjs",
+    "data:crime:db": "node scripts/import-crime-to-db.mjs",
+    "data:asylum:db": "node scripts/import-asylum-to-db.mjs",
+    "data:fertility:db": "node scripts/import-fertility-to-db.mjs",
+    "data:unemployment:db": "node scripts/import-unemployment-to-db.mjs",
+    "data:election:db": "node scripts/import-national-council-election-to-db.mjs",
+    "data:municipalities:db": "node scripts/import-municipalities-to-db.mjs",
+    "data:municipality-population:db": "node scripts/import-municipality-population-to-db.mjs",
+    "data:derive": "node scripts/derive-metrics.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:status": "node scripts/migrate.mjs --status"
   },
   "dependencies": {
+    "lucide-react": "^1.26.0",
     "next": "16.2.11",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "xlsx": "^0.18.5"
   }
 }

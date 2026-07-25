@@ -1,0 +1,12 @@
+.env*
+!.env.example
+.git
+.next
+node_modules
+postgres-data
+data/raw
+*.dump
+catalog-import.sql
+catalog-import-*.sql
+coverage
+npm-debug.log*
