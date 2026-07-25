@@ -158,7 +158,6 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
   function zoomMap(event: TouchEvent<HTMLDivElement>) {
     if (event.touches.length !== 2 || !pinchRef.current) return;
 
-    event.preventDefault();
     setZoom(pinchRef.current.zoom * (touchDistance(event.touches) / pinchRef.current.distance));
   }
 
