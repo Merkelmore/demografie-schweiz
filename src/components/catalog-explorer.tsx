@@ -15,12 +15,13 @@ const categories = [
   { code: "population_foreign_percent", label: "Ausländische Bevölkerung", shortLabel: "Ausländer" },
   { code: "fertility_tfr", label: "Fertilitätsrate", shortLabel: "Fertilität" },
   { code: "unemployment_rate", label: "Erwerbslosenquote (BFS)", shortLabel: "BFS-Quote" },
-  { code: "political_orientation_score", label: "Politische Orientierung", shortLabel: "Politik" },
+  { code: "political_orientation_score", label: "Politische Tendenz", shortLabel: "Politik" },
   { code: "cultural_enrichment_score", label: "Cultural Enrichment Score", shortLabel: "CES" },
 ] as const;
 
 const cardCacheTtl = 5 * 60 * 1000;
 const hoverDelay = 180;
+const balancedPoliticalScoreThreshold = 0.026;
 
 type Metric = CantonCardResponse["metrics"][number];
 type CategoryCode = (typeof categories)[number]["code"];
@@ -36,6 +37,12 @@ function formatMetric(metric?: Metric) {
 function formatScore(metric?: Metric) {
   if (!metric || metric.value === null) return formatMetric(metric);
   return `${metric.value >= 0 ? "+" : ""}${number.format(metric.value)}`;
+}
+
+function formatPoliticalTendency(metric?: Metric) {
+  if (!metric || metric.value === null) return formatScore(metric);
+  const tendency = Math.abs(metric.value) <= balancedPoliticalScoreThreshold ? "ausgeglichen" : metric.value > 0 ? "rechts" : "links";
+  return `${formatScore(metric)} (${tendency})`;
 }
 
 function formatCulturalScore(metric?: Metric) {
@@ -248,7 +255,7 @@ export function CatalogExplorer() {
           <div className="hover-card__header"><div><span>KANTON</span><h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1></div>{pinnedCode && <button type="button" aria-label="Fixierte Kantonsdaten schliessen" onClick={() => { setPinnedCode(null); setHoveredCode(null); }}><X size={16} /></button>}</div>
           {cardError && <p className="hover-card__error">{cardError}</p>}
           {!cardError && <>
-            {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatScore(activeMetric) : formatMetric(activeMetric)}</strong></div>}
+            {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric) : formatMetric(activeMetric)}</strong></div>}
             <div className="hover-card__ces"><span>Cultural Enrichment Score</span><strong>{formatCulturalScore(culturalScore)}</strong></div>
             <dl className="hover-card__facts">
               <div><dt>Einwohnerzahl</dt><dd>{formatMetric(metrics.get("population_total"))}</dd></div>
@@ -257,7 +264,7 @@ export function CatalogExplorer() {
               <div><dt>Ausländische Bevölkerung</dt><dd>{formatMetric(metrics.get("population_foreign_percent"))}</dd></div>
               <div><dt>Fertilitätsrate</dt><dd>{formatMetric(metrics.get("fertility_tfr"))}</dd></div>
               <div><dt>Erwerbslosenquote (BFS)</dt><dd>{formatMetric(metrics.get("unemployment_rate"))}</dd></div>
-              <div className="hover-card__political"><dt>Politische Orientierung {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{electionAvailable ? <><span>{formatElectionShares(electionShares)}</span><span>Score {formatScore(metrics.get("political_orientation_score"))}</span></> : formatScore(metrics.get("political_orientation_score"))}</dd></div>
+              <div className="hover-card__political"><dt>Politische Tendenz {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{electionAvailable ? <><span>{formatElectionShares(electionShares)}</span><span>Score {formatPoliticalTendency(metrics.get("political_orientation_score"))}</span></> : formatPoliticalTendency(metrics.get("political_orientation_score"))}</dd></div>
             </dl>
           </>}
         </aside>}
