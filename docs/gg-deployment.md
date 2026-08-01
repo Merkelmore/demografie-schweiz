@@ -19,6 +19,43 @@ this document works until all three exist.
 The three are independent of GG itself. GG does not create them; it drives
 deployments once they exist.
 
+## What a new project inherits, and what it does not
+
+Almost nothing carries over on its own. Only the first row below is genuinely
+shared; everything else is per-project setup that someone has to perform once.
+
+| Thing | Inherited by a new project? | Why |
+| --- | --- | --- |
+| `/usr/local/bin/gg-deploy` | **Yes** | It lives on the shared host. Every project's workflow reinstalls the newest copy from its own `scripts/gg-deploy.sh` before invoking it, so all projects run the same command. |
+| This document | **No** | It lives in one repository. See *Making this reach every agent* below. |
+| `DEPLOY_USER` / `DEPLOY_PASSWORD` / `DEPLOY_SSH_KEY` | **No** | GitHub Actions secrets are per-repository. The account is a personal User with no organisations, so organisation-level shared secrets are not available — each new repository needs its own copies. |
+| A GitHub token for agents | **No** | Agent containers receive `GG_GITHUB_TOKEN` from GG, not from the repository. If it is missing or expired the agent cannot push, and this fails at the very end of a task. Verify it early with `GET https://api.github.com/user`. |
+| Deployment workflow and `gg-deploy.env` | **No** | Both are files in the repository. Copy them from [`gg-project-template/`](gg-project-template/). |
+| Domain, `.env.production`, `/srv` checkout | **No** | The three prerequisites above, by definition. |
+
+Note for agents: the container's home directory is an overlay that is rebuilt
+between sessions, while `/workspaces` is persistent disk. Anything written to
+`~/.claude` is gone next session. Durable knowledge belongs in a repository or in
+GG's own instructions.
+
+## Making this reach every agent
+
+A document in one repository only helps the project that holds it. To make it
+apply everywhere, add a pointer to GG's own global instructions on the host —
+`/srv/garden-gnome-orchestrator/AGENTS.md` — so every agent reads it regardless of
+which project it is working on:
+
+```markdown
+## Deploying a project
+
+Deployments use the shared `/usr/local/bin/gg-deploy` command. The full procedure,
+the three prerequisites (domain, production environment, production directory) and
+the rules that protect local recovery edits are documented at
+https://github.com/Merkelmore/demografie-schweiz/blob/master/docs/gg-deployment.md
+Read it before touching deployment configuration; do not re-derive it from the
+orchestrator's own source.
+```
+
 ## Shared host setup (once per host, already done)
 
 The host installs one shared command at `/usr/local/bin/gg-deploy`
