@@ -8,6 +8,8 @@ Production installs the shared `gg-deploy` command at `/usr/local/bin/gg-deploy`
 
 To register a future GG project, place its checkout under `/srv`, add `gg-deploy.env` with `BRANCH`, `COMPOSE_FILE`, and `ENV_FILE`, and invoke `gg-deploy /srv/<project-directory>` from its deployment workflow. Domain routing remains explicit in that project's Compose/Caddy configuration.
 
+The full project-agnostic procedure — including the domain, production environment, and production directory a new project has to provide — is documented in [`docs/gg-deployment.md`](docs/gg-deployment.md).
+
 ## Production deployment (Supabase + Hetzner)
 
 The production setup is built for one Next.js container, a managed Supabase PostgreSQL database, and Caddy as the only public reverse proxy. The application and the database are never published directly: only Caddy listens on ports `80` and `443`.
@@ -118,7 +120,7 @@ The first request should redirect to HTTPS, the HTTPS response should have a val
 
 ### Automatic deployments
 
-The repository includes a GitHub Actions workflow that deploys every push to `master`. Configure `DEPLOY_USER` plus either `DEPLOY_SSH_KEY` (recommended) or `DEPLOY_PASSWORD` as repository secrets. The workflow already knows this server's address and finds the existing production checkout automatically. The deployment account needs write access to that checkout and permission to run Docker Compose. The workflow fetches and fast-forwards rather than using `git reset --hard`, so unrelated local Caddy recovery edits are not overwritten.
+The repository includes a GitHub Actions workflow that deploys every push to `master`. Configure `DEPLOY_USER` plus either `DEPLOY_SSH_KEY` (recommended) or `DEPLOY_PASSWORD` as repository secrets. The workflow already knows this server's address; it installs the shared `gg-deploy` command and runs it against the production checkout at `/srv/cultural-enrichment-radar`. The deployment account needs write access to that checkout and permission to run Docker Compose. The workflow fetches and fast-forwards rather than using `git reset --hard`, so unrelated local Caddy recovery edits are not overwritten.
 
 ## Lokale Anwendung
 
