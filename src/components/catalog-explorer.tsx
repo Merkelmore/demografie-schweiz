@@ -1,9 +1,10 @@
 "use client";
 
-import { BookOpen, Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
+import { BookOpen, Building2, Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
+import { MunicipalityVoteExplorer } from "@/components/municipality-vote-explorer";
 import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
 
 const number = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
@@ -71,6 +72,7 @@ export function CatalogExplorer() {
   const [map, setMap] = useState<MapResponse>();
   const [cardError, setCardError] = useState<string>();
   const [mapError, setMapError] = useState<string>();
+  const [municipalityCanton, setMunicipalityCanton] = useState<string | null>(null);
   const cardCache = useRef(new Map<string, CachedCard>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeCode = pinnedCode ?? hoveredCode;
@@ -154,6 +156,10 @@ export function CatalogExplorer() {
     function dismissPinnedCard(event: KeyboardEvent) {
       if (event.key === "Escape") {
         if (hoverTimer.current) clearTimeout(hoverTimer.current);
+        if (municipalityCanton) {
+          setMunicipalityCanton(null);
+          return;
+        }
         setPinnedCode(null);
         setHoveredCode(null);
       }
@@ -161,7 +167,7 @@ export function CatalogExplorer() {
 
     window.addEventListener("keydown", dismissPinnedCard);
     return () => window.removeEventListener("keydown", dismissPinnedCard);
-  }, []);
+  }, [municipalityCanton]);
 
   useEffect(() => () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
@@ -233,6 +239,17 @@ export function CatalogExplorer() {
     setHoveredCode(code);
   }
 
+  if (municipalityCanton) {
+    return <div className="map-page municipality-map-page">
+      <header className="site-header">
+        <div className="site-header__identity"><span className="site-brand">Cultural Enrichment Radar</span></div>
+        <div className="site-header__actions"><button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(null)}><MapIcon size={15} />Kantonskarte</button></div>
+      </header>
+      <MunicipalityVoteExplorer cantonCode={municipalityCanton} key={municipalityCanton} onBack={() => setMunicipalityCanton(null)} onCantonChange={setMunicipalityCanton} />
+      <footer className="site-footer"><span>BFS · Gemeinde-Abstimmungsresultate</span><span>2026</span></footer>
+    </div>;
+  }
+
   return (
     <div className="map-page">
       <header className="site-header">
@@ -242,6 +259,7 @@ export function CatalogExplorer() {
           <label className="global-category global-category--mobile"><MapIcon className="global-category__icon" size={15} /><select aria-label="Kartenkategorie" value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.shortLabel}</option>)}</select><ChevronDown size={14} /></label>
         </div>
         <div className="site-header__actions">
+          <button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(pinnedCode ?? "ZH")}><Building2 size={15} />Gemeinde-Abstimmungen</button>
           <button className="methodology-trigger" type="button" onClick={() => setIsSourcesOpen(true)}><BookOpen size={15} />Quellen</button>
           <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />Was ist Cultural Enrichment Score?</button>
         </div>

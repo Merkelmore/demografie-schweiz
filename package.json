@@ -18,6 +18,7 @@
     "data:election:db": "node scripts/import-national-council-election-to-db.mjs",
     "data:municipalities:db": "node scripts/import-municipalities-to-db.mjs",
     "data:municipality-population:db": "node scripts/import-municipality-population-to-db.mjs",
+    "data:votes": "node scripts/import-municipal-votes.mjs",
     "data:derive": "node scripts/derive-metrics.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:status": "node scripts/migrate.mjs --status"
@@ -27,7 +28,8 @@
     "next": "16.2.11",
     "pg": "^8.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "topojson-client": "^3.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -35,6 +37,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/topojson-client": "^3.1.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",

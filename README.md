@@ -166,6 +166,18 @@ Der Import ist transaktional und idempotent. Jeder Lauf erhält eine Quelle, ein
 
 Gemeinden werden pro gewähltem Kanton angeboten, sobald ihre aktuelle BFS-Geografie importiert ist. Eine Kennzahl wird auf Gemeindeebene nur gezeigt, wenn die entsprechende amtliche Quelle eine vollständige und vergleichbare Abdeckung liefert.
 
+## Gemeinde-Abstimmungen
+
+Die eigenständige Ansicht **Gemeinde-Abstimmungen** zeigt die Resultate aller eidgenössischen Vorlagen der letzten drei Abstimmungstage auf Gemeindeebene. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behält ihre demografischen Kennzahlen.
+
+Die statischen Daten werden bewusst server-/buildseitig aktualisiert, weil die BFS-Abstimmungsdaten nicht als browserübergreifend CORS-fähige API vorausgesetzt werden können:
+
+```bash
+npm run data:votes
+```
+
+Die aktuelle Auswahl umfasst den 14.06.2026, 08.03.2026 und 30.11.2025. Resultate, die BFS noch als provisorisch kennzeichnet, werden in der Oberfläche entsprechend markiert. Die 12 Auslandsgemeinden ohne räumliche BFS-Geometrie erscheinen nicht auf der Karte.
+
 ## Nützliche Befehle
 
 ```powershell
