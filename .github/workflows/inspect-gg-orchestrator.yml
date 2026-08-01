@@ -35,4 +35,12 @@ jobs:
             find /srv/garden-gnome-orchestrator -maxdepth 4 -type f \
               \( -name 'package.json' -o -name 'docker-compose*.yml' -o -name 'Dockerfile' -o -name 'AGENTS.md' -o -name 'CLAUDE.md' -o -name '*deploy*' -o -name '*template*' \) \
               -print | sort
+            printf '\\n--- deployment-related source files ---\\n'
+            grep -RIl \
+              --exclude-dir=node_modules \
+              --exclude-dir=.git \
+              --exclude='*.lock' \
+              -E 'deployment|deploy|hosting|git push|Caddy' \
+              /srv/garden-gnome-orchestrator/server \
+              /srv/garden-gnome-orchestrator/deploy 2>/dev/null | sort
           REMOTE
