@@ -65,21 +65,26 @@ one-off URL so no credential is written into `.git/config`.
 
 ## Making this reach every agent
 
-A document in one repository only helps the project that holds it. To make it
-apply everywhere, add a pointer to GG's own global instructions on the host —
-`/srv/garden-gnome-orchestrator/AGENTS.md` — so every agent reads it regardless of
-which project it is working on:
+A document in one repository only helps the project that holds it. There are two
+levers, and it is worth knowing which file does what.
 
-```markdown
-## Deploying a project
+**Per project — works today, no orchestrator change.** Agents working on a project
+read that project's `AGENTS.md`. The orchestrator keeps each checkout in
+`workspaces/<project>/` on the host and mounts it into the container, so the
+project's own file is what reaches them. Append
+[`gg-project-template/agents-snippet.md`](gg-project-template/agents-snippet.md)
+to a new project's `AGENTS.md`, outside any `<!-- BEGIN:… -->` / `<!-- END:… -->`
+block, since content inside those markers is regenerated.
 
-Deployments use the shared `/usr/local/bin/gg-deploy` command. The full procedure,
-the three prerequisites (domain, production environment, production directory) and
-the rules that protect local recovery edits are documented at
-https://github.com/Merkelmore/demografie-schweiz/blob/master/docs/gg-deployment.md
-Read it before touching deployment configuration; do not re-derive it from the
-orchestrator's own source.
-```
+Note that the orchestrator's own `/srv/garden-gnome-orchestrator/AGENTS.md` is *not*
+the right place: it documents the orchestrator's codebase and is read by agents
+working on the orchestrator itself, not by project agents.
+
+**All projects at once — needs an orchestrator change.** Claude Code reads
+`~/.claude/CLAUDE.md` as global instructions for every project, but the container's
+home directory is a fresh overlay each session, so the file has to be created at
+container start to be there at all. Seeding it from the agent image or entrypoint is
+the only way to make one document apply everywhere without touching each repository.
 
 ## Shared host setup (once per host, already done)
 
