@@ -112,7 +112,7 @@ The first request should redirect to HTTPS, the HTTPS response should have a val
 
 ### Automatic deployments
 
-The repository includes a GitHub Actions workflow that deploys every push to `master`. Configure these repository secrets once: `DEPLOY_HOST`, `DEPLOY_PORT` (usually `22`), `DEPLOY_USER`, `DEPLOY_PATH`, and `DEPLOY_SSH_KEY`. The deployment account needs write access to the existing checkout and permission to run Docker Compose. The workflow fetches and fast-forwards the checkout rather than using `git reset --hard`, so unrelated local Caddy recovery edits are not overwritten.
+The repository includes a GitHub Actions workflow that deploys every push to `master`. Configure `DEPLOY_USER` plus either `DEPLOY_SSH_KEY` (recommended) or `DEPLOY_PASSWORD` as repository secrets. The workflow already knows this server's address and finds the existing production checkout automatically. The deployment account needs write access to that checkout and permission to run Docker Compose. The workflow fetches and fast-forwards rather than using `git reset --hard`, so unrelated local Caddy recovery edits are not overwritten.
 
 ## Lokale Anwendung
 
