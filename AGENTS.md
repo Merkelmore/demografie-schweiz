@@ -6,6 +6,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Deployment
 
+Stuck or going in circles? [`docs/agent-unblock.md`](docs/agent-unblock.md) describes
+this container's actual constraints and the traps that have cost the most time.
+
 Read [`docs/gg-deployment.md`](docs/gg-deployment.md) before touching anything
 deployment-related. It covers the shared `gg-deploy` command, the three
 prerequisites a project must provide, and what a new project does and does not
