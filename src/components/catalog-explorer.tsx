@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
 import { MunicipalityVoteExplorer } from "@/components/municipality-vote-explorer";
+import { PoliticalCompassModal } from "@/components/political-compass-modal";
 import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
 
 const number = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
@@ -62,6 +63,8 @@ function formatElectionShares(partyShares: CantonCardResponse["election"]["party
 export function CatalogExplorer() {
   const [mapMetric, setMapMetric] = useState<CategoryCode>("population_total");
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  const [pinnedCode, setPinnedCode] = useState<string | null>(null);
+  const [compassMode, setCompassMode] = useState<"cantons" | null>(null);
   const [cardPosition, setCardPosition] = useState({ x: 24, y: 76 });
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
@@ -74,7 +77,7 @@ export function CatalogExplorer() {
   const [municipalityCanton, setMunicipalityCanton] = useState<string | null>(null);
   const cardCache = useRef(new Map<string, CachedCard>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeCode = hoveredCode;
+  const activeCode = pinnedCode ?? hoveredCode;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -153,12 +156,14 @@ export function CatalogExplorer() {
 
   useEffect(() => {
     function dismissPinnedCard(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         if (hoverTimer.current) clearTimeout(hoverTimer.current);
         if (municipalityCanton) {
           setMunicipalityCanton(null);
           return;
         }
+        setPinnedCode(null);
         setHoveredCode(null);
       }
     }
@@ -178,7 +183,7 @@ export function CatalogExplorer() {
   const culturalScore = metrics.get("cultural_enrichment_score");
   const activeCategory = categories.find((category) => category.code === mapMetric) ?? categories[0];
   const activeMetric = metrics.get(mapMetric);
-  const isCardVisible = hoveredCode !== null;
+  const isCardVisible = activeCode !== null;
 
   function clearHoverTimer() {
     if (hoverTimer.current) {
@@ -197,6 +202,7 @@ export function CatalogExplorer() {
   }
 
   function hoverCanton(code: string, position: { x: number; y: number }) {
+    if (pinnedCode) return;
     positionCard(position);
     if (hoveredCode === code) return;
 
@@ -216,6 +222,7 @@ export function CatalogExplorer() {
   }
 
   function leaveCanton() {
+    if (pinnedCode) return;
     clearHoverTimer();
     hoverTimer.current = setTimeout(() => {
       setHoveredCode(null);
@@ -225,8 +232,20 @@ export function CatalogExplorer() {
 
   function selectCanton(code: string) {
     clearHoverTimer();
+    setPinnedCode((selected) => selected === code ? null : code);
+    setHoveredCode(code);
+  }
+
+  function closeCantonCard() {
+    clearHoverTimer();
+    setPinnedCode(null);
     setHoveredCode(null);
-    setMunicipalityCanton(code);
+  }
+
+  function openMunicipalityVotes() {
+    if (!activeCode) return;
+    setMunicipalityCanton(activeCode);
+    closeCantonCard();
   }
 
   if (municipalityCanton) {
@@ -254,12 +273,12 @@ export function CatalogExplorer() {
         </div>
       </header>
       <main className="map-explorer" aria-label="Interaktive Karte der Schweizer Kantone">
-        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
+        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={activeCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
         {mapError && <span className="map-availability">{mapError}</span>}
         {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
 
-        {isCardVisible && <aside className="hover-card" aria-live="polite" aria-label="Kantonsdaten" style={{ left: cardPosition.x, top: cardPosition.y }}>
-          <div className="hover-card__header"><div><span>KANTON</span><h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1></div></div>
+        {isCardVisible && <aside className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label="Kantonsdaten" style={{ left: cardPosition.x, top: cardPosition.y }} onPointerEnter={clearHoverTimer} onPointerLeave={leaveCanton}>
+          <div className="hover-card__header"><div><span>KANTON</span><h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1></div>{pinnedCode && <button type="button" aria-label="Fixierte Kantonsdaten schliessen" onClick={closeCantonCard}><X size={16} /></button>}</div>
           {cardError && <p className="hover-card__error">{cardError}</p>}
           {!cardError && <>
             {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric) : formatMetric(activeMetric)}</strong></div>}
@@ -273,12 +292,14 @@ export function CatalogExplorer() {
               <div><dt>Erwerbslosenquote (BFS)</dt><dd>{formatMetric(metrics.get("unemployment_rate"))}</dd></div>
               <div className="hover-card__political"><dt>Politische Tendenz {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{electionAvailable ? <><span>{formatElectionShares(electionShares)}</span><span>Score {formatPoliticalTendency(metrics.get("political_orientation_score"))}</span></> : formatPoliticalTendency(metrics.get("political_orientation_score"))}</dd></div>
             </dl>
+            {pinnedCode && <div className="hover-card__actions"><button type="button" onClick={openMunicipalityVotes}>Gemeinde-Abstimmungen</button><button type="button" onClick={() => setCompassMode("cantons")}>Politischer Kompass</button></div>}
           </>}
         </aside>}
       </main>
       <footer className="site-footer"><span>BFS · SEM · Lokaler Datenkatalog</span><span>2026</span></footer>
       {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>DATENGRUNDLAGEN</span><h2 id="sources-title">Quellen</h2></div><button type="button" aria-label="Quellen schliessen" onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">Quellen werden geladen …</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{source.metric}</strong><span>{source.title}{source.referenceDate ? ` · Stand ${source.referenceDate}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">Originalquelle öffnen</a> : <span className="sources-list__local">Lokale Berechnung aus den genannten Datenquellen</span>}</li>)}</ul>}</section></div>}
       {isMethodologyOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsMethodologyOpen(false)}><section className="methodology-dialog" role="dialog" aria-modal="true" aria-labelledby="methodology-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>BERECHNUNG</span><h2 id="methodology-title">Cultural Enrichment Score</h2></div><button type="button" aria-label="Berechnung schliessen" onClick={() => setIsMethodologyOpen(false)}><X size={18} /></button></div><p>Nicht amtlicher Kompositindex. Alle vier Faktoren werden über die aktuell verfügbaren Kantone auf 0 bis 100 normiert und zählen gleich stark.</p><p className="methodology-formula">CES = 0.25 × (Kriminalität + offene Asylverfahren + ausländische Bevölkerung + Erwerbslosenquote)</p><ul><li>Kriminalität pro 100&apos;000: 2025</li><li>Offene Asylverfahren pro 1&apos;000: 30.06.2026</li><li>Ausländische Bevölkerung: 2024</li><li>BFS-Erwerbslosenquote: 2024</li></ul><p>Für Appenzell Innerrhoden ist kein Score verfügbar, da keine Erwerbslosenquote veröffentlicht wurde.</p></section></div>}
+      {compassMode && <PoliticalCompassModal mode={compassMode} onClose={() => setCompassMode(null)} />}
     </div>
   );
 }

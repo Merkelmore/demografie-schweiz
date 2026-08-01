@@ -19,6 +19,7 @@
     "data:municipalities:db": "node scripts/import-municipalities-to-db.mjs",
     "data:municipality-population:db": "node scripts/import-municipality-population-to-db.mjs",
     "data:votes": "node scripts/import-municipal-votes.mjs",
+    "test:political-compass": "node --test scripts/political-compass.test.mjs",
     "data:derive": "node scripts/derive-metrics.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:status": "node scripts/migrate.mjs --status"

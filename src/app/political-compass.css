@@ -1,0 +1,30 @@
+.compass-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 16px; background: rgb(17 34 45 / .48); }
+.compass-dialog { width: min(1050px, 100%); max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid #b9c6cd; background: #fff; box-shadow: 0 24px 60px rgb(15 35 48 / .35); color: #172a3a; }
+.compass-dialog__header { display: flex; justify-content: space-between; gap: 18px; padding: 16px 18px 14px; border-bottom: 1px solid #e3e8eb; }
+.compass-dialog__header span { color: #65727d; font-size: 9px; font-weight: 750; letter-spacing: .09em; }
+.compass-dialog__header h2 { margin: 3px 0; font-size: 20px; line-height: 1.15; }
+.compass-dialog__header p { margin: 0; color: #65727d; font-size: 11px; }
+.compass-dialog__actions { display: flex; align-items: start; gap: 8px; }
+.compass-dialog__actions button, .compass-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; border: 1px solid #cfd8df; border-radius: 2px; background: #fff; color: #172a3a; font-size: 11px; font-weight: 700; }
+.compass-dialog__actions > button:last-child { width: 30px; }
+.compass-info-button { padding: 0 9px; color: #65161d !important; }
+.compass-method { padding: 14px 18px; border-bottom: 1px solid #e3e8eb; background: #f7f9fa; }
+.compass-method p { max-width: 820px; margin: 0 0 10px; color: #46535d; font-size: 12px; line-height: 1.48; }
+.compass-method__table-wrap { overflow-x: auto; }
+.compass-method table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.compass-method th, .compass-method td { padding: 6px 8px; border-top: 1px solid #dce4e8; text-align: left; }
+.compass-method th { color: #65727d; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
+.compass-method td:nth-child(n+2) { font-variant-numeric: tabular-nums; text-align: right; }
+.compass-method__excluded { margin-bottom: 0 !important; font-size: 10px !important; }
+.compass-notice { margin: 0; padding: 10px 18px; border-bottom: 1px solid #eed5cf; background: #fff6f3; color: #8b342c; font-size: 12px; }
+.compass-workspace { padding: 16px 18px 12px; }
+.compass-status { display: grid; min-height: 380px; place-items: center; margin: 0; color: #65727d; font-size: 13px; }
+.compass-chart { display: block; width: min(760px, 100%); max-height: min(67dvh, 680px); margin: auto; overflow: hidden; touch-action: none; user-select: none; }
+.compass-chart:active { cursor: grabbing; }
+.compass-quadrant { stroke: #e2e8e6; stroke-width: 1; }
+.compass-quadrant--authoritarian-left { fill: #f7d5d4; }.compass-quadrant--authoritarian-right { fill: #d4eaf5; }.compass-quadrant--libertarian-left { fill: #dcefd3; }.compass-quadrant--libertarian-right { fill: #ead9eb; }
+.compass-axis { stroke: #1f323d; stroke-width: 2; vector-effect: non-scaling-stroke; }.compass-axis-label { fill: #172a3a; font-size: 14px; font-weight: 700; }.compass-quadrant-label { fill: #56626b; font-size: 16px; font-weight: 700; opacity: .58; text-anchor: middle; }
+.compass-point { cursor: crosshair; fill: #9d2029; stroke: #fff; stroke-width: .65; opacity: .56; }.compass-point--cantons { fill: #a4212a; opacity: .92; stroke-width: 1.4; }.compass-point:hover, .compass-point:focus-visible { fill: #f47c20; opacity: 1; outline: none; stroke: #172a3a; stroke-width: 1.8; }
+.compass-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(760px, 100%); margin: 10px auto 0; }.compass-controls button { padding: 0 9px; }.compass-controls p { display: flex; flex-wrap: wrap; gap: 4px; justify-content: end; margin: 0; color: #65727d; font-size: 11px; text-align: right; }.compass-controls strong { color: #172a3a; }.compass-controls p span { width: 100%; color: #172a3a; font-variant-numeric: tabular-nums; }
+.compass-dialog__footer { padding: 10px 18px; border-top: 1px solid #e3e8eb; color: #65727d; font-size: 10px; line-height: 1.4; }
+@media (max-width: 640px) { .compass-backdrop { padding: 8px; }.compass-dialog { max-height: calc(100dvh - 16px); }.compass-dialog__header { padding: 12px; }.compass-dialog__header h2 { font-size: 17px; }.compass-info-button { font-size: 0 !important; width: 30px; padding: 0 !important; }.compass-workspace { padding: 10px; }.compass-method { padding: 12px; }.compass-controls { align-items: start; }.compass-controls p { font-size: 10px; }.compass-chart { max-height: 57dvh; }.compass-axis-label { font-size: 12px; } }

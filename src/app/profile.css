@@ -259,6 +259,25 @@
   line-height: 1.4;
 }
 
+.hover-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.hover-card__actions button {
+  min-height: 32px;
+  border: 1px solid #a4212a;
+  border-radius: 2px;
+  background: #fff;
+  color: #8b2028;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hover-card__actions--single { grid-template-columns: 1fr; }
+
 .methodology-backdrop {
   position: fixed;
   z-index: 5;

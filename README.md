@@ -180,7 +180,7 @@ Gemeinden werden pro gewähltem Kanton angeboten, sobald ihre aktuelle BFS-Geogr
 
 ## Gemeinde-Abstimmungen
 
-Ein Klick auf einen Kanton öffnet dessen Ansicht **Gemeinde-Abstimmungen**. Sie zeigt die Resultate aller eidgenössischen Vorlagen der letzten drei Abstimmungstage auf Gemeindeebene. Beim Überfahren einer Gemeinde erscheint eine Ergebnis-Karte; ein Klick oder Enter/Leertaste pinnt sie. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behält ihre demografischen Kennzahlen.
+Ein Klick auf einen Kanton fixiert dessen Detailkarte. Von dort öffnen **Gemeinde-Abstimmungen** die Gemeindeansicht und **Politischer Kompass** den kantonalen Kompass. Die Gemeindeansicht zeigt die Resultate aller eidgenössischen Vorlagen der letzten vier Abstimmungstage auf Gemeindeebene; eine fixierte Gemeinde-Karte bietet ebenfalls den politischen Kompass mit allen Schweizer Gemeinden. Beim Überfahren einer Gemeinde erscheint eine Ergebnis-Karte; ein Klick oder Enter/Leertaste pinnt sie. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behält ihre demografischen Kennzahlen.
 
 Die statischen Daten werden bewusst server-/buildseitig aktualisiert, weil die BFS-Abstimmungsdaten nicht als browserübergreifend CORS-fähige API vorausgesetzt werden können:
 
@@ -188,7 +188,21 @@ Die statischen Daten werden bewusst server-/buildseitig aktualisiert, weil die B
 npm run data:votes
 ```
 
-Die aktuelle Auswahl umfasst den 14.06.2026, 08.03.2026 und 30.11.2025. Resultate, die BFS noch als provisorisch kennzeichnet, werden in der Oberfläche entsprechend markiert. Die 12 Auslandsgemeinden ohne räumliche BFS-Geometrie erscheinen nicht auf der Karte.
+Die aktuelle Auswahl umfasst den 14.06.2026, 08.03.2026, 30.11.2025 und 28.09.2025. Resultate, die BFS noch als provisorisch kennzeichnet, werden in der Oberfläche entsprechend markiert. Die 12 Auslandsgemeinden ohne räumliche BFS-Geometrie erscheinen nicht auf der Karte.
+
+## Politischer Kompass
+
+`npm run data:votes` lädt die amtlichen JSON-Ergebnisse von [BFS voteinfo](https://www.bfs.admin.ch/bfs/de/home/dienstleistungen/geostat/geodaten-statistik-bundesamt/abstimmungen.html) und erzeugt zusätzlich `public/data/political-compass.json`. Der Snapshot enthält nur aktuelle räumliche BFS-Gemeinde-IDs: historische oder fusionierte Gemeinden werden nicht auf heutige Gemeinden übertragen. Fehlt für eine aktuelle Gemeinde eines der neun aktiven Resultate, wird keine Position geschätzt oder erfunden; die fehlende ID bleibt im Snapshot dokumentiert.
+
+Für jede aktive Vorlage wird mit den exakten Ja-Prozenten gerechnet:
+
+$$
+\Delta(g,v) = \operatorname{clamp}_{[-3,3]}\left(\frac{Ja(g,v)-Ja(CH,v)}{\sigma_v}\right)
+$$
+
+Dabei ist $\sigma_v$ die Populations-Standardabweichung der Gemeinde-Jaanteile dieser Vorlage. Die gewichteten Summen bilden die Achsen $x$ (wirtschaftlich links $\leftrightarrow$ rechts) und $y$ (libertär $\leftrightarrow$ autoritär). Beide werden über die feste theoretische Spanne $3 \times \sum |Gewicht|$ auf $[-100,100]$ skaliert. Kantonswerte entstehen für jede Vorlage aus der Summe von Ja- und Nein-Stimmen ihrer aktuellen kartierten Gemeinden; sie benutzen danach dieselben Schweizer Referenzen und Gemeinde-Standardabweichungen.
+
+Aktiv sind: Zweitliegenschaftssteuer-Reform (6780), E-ID-Gesetz (6790), Initiative für eine Zukunft (6810), Bargeld-Initiative (6821), SRG-Initiative (6830), Klimafonds-Initiative (6840), Individualbesteuerung (6850), Nachhaltigkeitsinitiative (6860) und Zivildienstgesetz (6870). Service citoyen (6800), Bargeld-Gegenvorschlag (6822) und Stichfrage (6823) zählen bewusst nicht. Alle Gewichte und die nationalen Referenzwerte stehen im generierten Snapshot sowie hinter dem Info-Knopf des Modals. Die Anzeige ist ein relatives Modell der Abstimmungsabweichungen und keine objektive Einordnung von Gemeinden, Kantonen oder Menschen.
 
 ## Nützliche Befehle
 
@@ -209,6 +223,8 @@ npm run data:municipalities:db
 npm run data:municipality-population:db
 npm run data:derive
 npm run data:population
+npm run data:votes
+npm run test:political-compass
 ```
 
 Der letzte Befehl erzeugt weiterhin die bisherige statische Explorer-JSON-Datei als Demo-Cache. Der Explorer verwendet sie nicht mehr: Zur Laufzeit fragt er ausschließlich die lokale Route `/api/catalog` und damit PostgreSQL ab.
