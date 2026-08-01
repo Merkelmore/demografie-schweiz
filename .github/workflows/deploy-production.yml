@@ -37,13 +37,9 @@ jobs:
           fi
           "${SSH[@]}" "bash -s" <<'REMOTE'
             set -euo pipefail
-            mapfile -t compose_files < <(find /srv /home /opt /root -maxdepth 5 -name docker-compose.production.yml -exec grep -l "cultural-enrichment-radar" {} \; 2>/dev/null)
-            if [ "${#compose_files[@]}" -ne 1 ]; then
-              echo "Expected one Cultural Enrichment Radar production checkout, found ${#compose_files[@]}." >&2
-              printf 'Candidate: %s\\n' "${compose_files[@]}" >&2
-              exit 1
-            fi
-            cd "$(dirname "${compose_files[0]}")"
+            cd /srv/cultural-enrichment-radar
+            test -f docker-compose.production.yml
+            test -f .env.production
             git fetch origin master
             git merge --ff-only origin/master
             docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
