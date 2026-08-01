@@ -4,9 +4,9 @@ Interaktiver Explorer für amtliche Schweizer Kennzahlen. Die Anwendung zeigt nu
 
 ## GG deployment command
 
-Production installs the shared `gg-deploy` command at `/usr/local/bin/gg-deploy`. It updates a Git checkout as its owning user and rebuilds either `docker-compose.production.yml` (with `.env.production`) or `docker-compose.yml` (with `.env`). It only accepts project directories below `/srv` and uses `git merge --ff-only`, so it does not overwrite local recovery changes.
+Production installs the shared `gg-deploy` command at `/usr/local/bin/gg-deploy`. It reads the standard `gg-deploy.env` manifest, updates a Git checkout as its owning user, and rebuilds the declared Docker Compose service. It only accepts project directories below `/srv` and uses `git merge --ff-only`, so it does not overwrite local recovery changes.
 
-To register a future GG project, place its checkout under `/srv`, provide one of those Docker Compose files, and invoke `gg-deploy /srv/<project-directory> <branch>` from its deployment workflow. Domain routing remains explicit in that project's Compose/Caddy configuration.
+To register a future GG project, place its checkout under `/srv`, add `gg-deploy.env` with `BRANCH`, `COMPOSE_FILE`, and `ENV_FILE`, and invoke `gg-deploy /srv/<project-directory>` from its deployment workflow. Domain routing remains explicit in that project's Compose/Caddy configuration.
 
 ## Production deployment (Supabase + Hetzner)
 
