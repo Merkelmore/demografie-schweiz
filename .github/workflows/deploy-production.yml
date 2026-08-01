@@ -40,6 +40,7 @@ jobs:
             mapfile -t compose_files < <(find /srv /home /opt /root -maxdepth 5 -name docker-compose.production.yml -exec grep -l "cultural-enrichment-radar" {} \; 2>/dev/null)
             if [ "${#compose_files[@]}" -ne 1 ]; then
               echo "Expected one Cultural Enrichment Radar production checkout, found ${#compose_files[@]}." >&2
+              printf 'Candidate: %s\\n' "${compose_files[@]}" >&2
               exit 1
             fi
             cd "$(dirname "${compose_files[0]}")"
