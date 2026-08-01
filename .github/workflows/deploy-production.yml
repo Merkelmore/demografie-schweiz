@@ -37,6 +37,7 @@ jobs:
           fi
           "${SSH[@]}" "bash -s" <<'REMOTE'
             set -euo pipefail
+            git config --global --add safe.directory /srv/cultural-enrichment-radar
             cd /srv/cultural-enrichment-radar
             test -f docker-compose.production.yml
             test -f .env.production
