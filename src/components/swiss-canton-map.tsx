@@ -104,7 +104,7 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
   const [isPanning, setIsPanning] = useState(false);
   const mapZoomRef = useRef(1);
   const mapOffsetRef = useRef({ x: 0, y: 0 });
-  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const pinchRef = useRef<{ distance: number; moved: boolean; zoom: number } | null>(null);
   const panRef = useRef<{ moved: boolean; startX: number; startY: number; x: number; y: number } | null>(null);
   const suppressClickRef = useRef(false);
   const numericValues = values ? Object.values(values) : [];
@@ -180,12 +180,17 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
     if (event.touches.length !== 2) return;
 
     panRef.current = null;
-    pinchRef.current = { distance: touchDistance(event.touches), zoom: mapZoomRef.current };
+    pinchRef.current = { distance: touchDistance(event.touches), moved: false, zoom: mapZoomRef.current };
   }
 
   function moveTouch(event: TouchEvent<HTMLDivElement>) {
     if (event.touches.length === 2 && pinchRef.current) {
-      setZoom(pinchRef.current.zoom * (touchDistance(event.touches) / pinchRef.current.distance));
+      const distance = touchDistance(event.touches);
+      if (Math.abs(distance - pinchRef.current.distance) >= panActivationDistance) {
+        pinchRef.current.moved = true;
+        setIsPanning(true);
+      }
+      setZoom(pinchRef.current.zoom * (distance / pinchRef.current.distance));
       return;
     }
 
@@ -201,9 +206,20 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
   }
 
   function endTouch(event: TouchEvent<HTMLDivElement>) {
-    if (event.touches.length < 2) pinchRef.current = null;
+    if (event.touches.length === 1 && pinchRef.current) {
+      const touch = touchPoint(event.touches[0]);
+      suppressClickRef.current ||= pinchRef.current.moved;
+      panRef.current = { moved: false, startX: touch.x, startY: touch.y, x: mapOffsetRef.current.x, y: mapOffsetRef.current.y };
+      pinchRef.current = null;
+      return;
+    }
+
+    if (event.touches.length < 2) {
+      suppressClickRef.current ||= pinchRef.current?.moved ?? false;
+      pinchRef.current = null;
+    }
     if (event.touches.length === 0) {
-      suppressClickRef.current = panRef.current?.moved ?? false;
+      suppressClickRef.current ||= panRef.current?.moved ?? false;
       panRef.current = null;
       setIsPanning(false);
     }
