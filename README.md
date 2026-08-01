@@ -110,6 +110,10 @@ curl -fsS https://radar.example.ch/api/catalog/map?metric=population_total
 
 The first request should redirect to HTTPS, the HTTPS response should have a valid certificate, and the API request should return JSON. Caddy persists certificate material in Docker volumes, so normal container restarts do not cause certificate reissuance.
 
+### Automatic deployments
+
+The repository includes a GitHub Actions workflow that deploys every push to `master`. Configure these repository secrets once: `DEPLOY_HOST`, `DEPLOY_PORT` (usually `22`), `DEPLOY_USER`, `DEPLOY_PATH`, and `DEPLOY_SSH_KEY`. The deployment account needs write access to the existing checkout and permission to run Docker Compose. The workflow fetches and fast-forwards the checkout rather than using `git reset --hard`, so unrelated local Caddy recovery edits are not overwritten.
+
 ## Lokale Anwendung
 
 ```powershell
