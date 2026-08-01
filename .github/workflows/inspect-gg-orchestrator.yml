@@ -32,6 +32,18 @@ jobs:
           fi
           "${SSH[@]}" "bash -s" <<'REMOTE'
             set -euo pipefail
+            printf '\\n--- GG instructions ---\\n'
+            sed -n '1,260p' /srv/garden-gnome-orchestrator/AGENTS.md
+            sed -n '1,80p' /srv/garden-gnome-orchestrator/CLAUDE.md
+            printf '\\n--- GG deployment references ---\\n'
+            grep -RIn \
+              --exclude-dir=node_modules \
+              --exclude-dir=.git \
+              -E 'deployment|deploy|hosting|git push|Caddy' \
+              /srv/garden-gnome-orchestrator/server/src \
+              /srv/garden-gnome-orchestrator/server/scripts 2>/dev/null | head -240
+            printf '\\n--- GG deployment compose ---\\n'
+            sed -n '1,260p' /srv/garden-gnome-orchestrator/deploy/docker-compose.yml
             find /srv/garden-gnome-orchestrator -maxdepth 4 -type f \
               \( -name 'package.json' -o -name 'docker-compose*.yml' -o -name 'Dockerfile' -o -name 'AGENTS.md' -o -name 'CLAUDE.md' -o -name '*deploy*' -o -name '*template*' \) \
               -print | sort
