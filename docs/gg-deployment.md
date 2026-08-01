@@ -38,6 +38,31 @@ between sessions, while `/workspaces` is persistent disk. Anything written to
 `~/.claude` is gone next session. Durable knowledge belongs in a repository or in
 GG's own instructions.
 
+## Keep `GG_GITHUB_TOKEN` alive
+
+This is the single highest-value maintenance item, and the one that has actually
+cost time. Agents finish a task, try to push, and only then discover the token is
+dead — the work is complete but stranded, and recovering it costs a round-trip
+through whoever owns the account.
+
+Set a working token in **GG's own environment** as `GG_GITHUB_TOKEN`, so every
+agent container inherits it. It is not a repository secret and cannot be set
+per-project. A classic PAT with the `repo` scope is sufficient; generate it at
+`https://github.com/settings/tokens`.
+
+Because the token expires, treat it as something to renew rather than to set once.
+Two habits make an expiry cheap instead of expensive:
+
+- Agents verify the credential at the *start* of a task, not at push time:
+  `GET https://api.github.com/user`. A `401` means ask for a fresh token
+  immediately, while the work still has somewhere to go.
+- Anonymous HTTPS still reads a public repository, so a dead token blocks pushing
+  but never blocks fetching. A stale `origin/master` can always be refreshed with
+  `git fetch https://github.com/<owner>/<repo>.git +refs/heads/master:refs/remotes/origin/master`.
+
+Never store the token in a file in this repository — it is public. Push with a
+one-off URL so no credential is written into `.git/config`.
+
 ## Making this reach every agent
 
 A document in one repository only helps the project that holds it. To make it
