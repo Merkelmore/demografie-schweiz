@@ -1,0 +1,38 @@
+name: Inspect GG deployment configuration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Locate GG deployment configuration
+        env:
+          DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_USER"
+          DEPLOY_HOST=46.225.138.103
+          if [ -n "$DEPLOY_SSH_KEY" ]; then
+            install -d -m 700 ~/.ssh
+            printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+            SSH=(ssh -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST")
+          else
+            test -n "$DEPLOY_PASSWORD"
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq sshpass
+            export SSHPASS="$DEPLOY_PASSWORD"
+            SSH=(sshpass -e ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_USER@$DEPLOY_HOST")
+          fi
+          "${SSH[@]}" "bash -s" <<'REMOTE'
+            set -euo pipefail
+            find /srv/garden-gnome-orchestrator -maxdepth 4 -type f \
+              \( -name 'package.json' -o -name 'docker-compose*.yml' -o -name 'Dockerfile' -o -name 'AGENTS.md' -o -name 'CLAUDE.md' -o -name '*deploy*' -o -name '*template*' \) \
+              -print | sort
+          REMOTE
