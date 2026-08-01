@@ -180,7 +180,7 @@ Gemeinden werden pro gewähltem Kanton angeboten, sobald ihre aktuelle BFS-Geogr
 
 ## Gemeinde-Abstimmungen
 
-Die eigenständige Ansicht **Gemeinde-Abstimmungen** zeigt die Resultate aller eidgenössischen Vorlagen der letzten drei Abstimmungstage auf Gemeindeebene. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behält ihre demografischen Kennzahlen.
+Ein Klick auf einen Kanton öffnet dessen Ansicht **Gemeinde-Abstimmungen**. Sie zeigt die Resultate aller eidgenössischen Vorlagen der letzten drei Abstimmungstage auf Gemeindeebene. Beim Überfahren einer Gemeinde erscheint eine Ergebnis-Karte; ein Klick oder Enter/Leertaste pinnt sie. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behält ihre demografischen Kennzahlen.
 
 Die statischen Daten werden bewusst server-/buildseitig aktualisiert, weil die BFS-Abstimmungsdaten nicht als browserübergreifend CORS-fähige API vorausgesetzt werden können:
 

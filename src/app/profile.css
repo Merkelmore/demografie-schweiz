@@ -475,11 +475,9 @@
 }
 
 .municipality-explorer {
-  display: grid;
   width: min(1280px, 100%);
   min-height: min(74dvh, 650px);
   margin: auto;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 370px);
   border: 1px solid #cfd8df;
   background: #fff;
 }
@@ -493,17 +491,14 @@
 
 .municipality-map-toolbar {
   display: grid;
-  grid-template-columns: auto minmax(150px, 1fr) minmax(130px, .45fr) minmax(210px, .8fr);
+  grid-template-columns: auto minmax(150px, 1fr) minmax(210px, .8fr);
   gap: 14px;
   align-items: center;
   margin-bottom: 14px;
 }
 
 .municipality-map-toolbar > div > span,
-.municipality-canton-select > span,
-.municipality-proposal-select > span,
-.municipality-detail header > span,
-.municipality-detail__empty > span {
+.municipality-proposal-select > span {
   color: #65727d;
   font-size: 9px;
   font-weight: 700;
@@ -511,7 +506,7 @@
 }
 
 .municipality-map-toolbar h1,
-.municipality-detail h2 {
+.hover-card--municipality h2 {
   margin: 3px 0 0;
   color: #172a3a;
   font-size: 18px;
@@ -530,7 +525,6 @@
   font-weight: 700;
 }
 
-.municipality-canton-select,
 .municipality-proposal-select {
   position: relative;
   display: grid;
@@ -538,7 +532,6 @@
   min-width: 0;
 }
 
-.municipality-canton-select select,
 .municipality-proposal-select select {
   width: 100%;
   min-width: 0;
@@ -554,7 +547,6 @@
   text-overflow: ellipsis;
 }
 
-.municipality-canton-select svg,
 .municipality-proposal-select svg {
   position: absolute;
   right: 8px;
@@ -609,33 +601,29 @@
   font-size: 10px;
 }
 
-.municipality-detail {
-  overflow-y: auto;
-  border-left: 1px solid #cfd8df;
-  background: #fff;
+.hover-card--municipality {
+  width: min(410px, calc(100vw - 24px));
+  max-height: min(620px, calc(100dvh - 76px));
 }
 
-.municipality-detail header,
-.municipality-detail__empty {
-  padding: 18px;
-  border-bottom: 1px solid #e3e8eb;
+.hover-card--municipality h2 {
+  margin: 3px 0 0;
+  color: #172a3a;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
 }
 
-.municipality-detail__empty {
-  min-height: 100%;
-  display: grid;
-  align-content: center;
-}
-
-.municipality-detail__empty p,
-.municipality-detail__intro {
+.municipality-hover-card__content > p {
+  margin: 0;
+  padding: 12px 16px 4px;
   color: #65727d;
   font-size: 12px;
   line-height: 1.45;
 }
 
-.municipality-detail__content { padding: 0 18px 18px; }
-.municipality-voting-day { padding: 14px 0; border-bottom: 1px solid #e3e8eb; }
+.municipality-voting-day { padding: 12px 16px; border-bottom: 1px solid #e3e8eb; }
 .municipality-voting-day h3 { margin: 0 0 8px; color: #65161d; font-size: 12px; }
 .municipality-voting-day > div { display: grid; gap: 3px; padding: 9px 0; border-top: 1px solid #eef1f3; }
 .municipality-voting-day strong { color: #172a3a; font-size: 11px; line-height: 1.35; }
@@ -738,11 +726,10 @@
   }
 
   .municipality-page { padding: 8px; }
-  .municipality-explorer { min-height: 0; grid-template-columns: 1fr; }
+  .municipality-explorer { min-height: 0; }
   .municipality-map-workspace { grid-template-rows: auto 380px auto; }
   .municipality-map-toolbar { grid-template-columns: 1fr 1fr; gap: 10px; }
   .municipality-map-toolbar > div { grid-column: span 2; order: -1; }
   .municipality-back { grid-column: span 2; }
-  .municipality-detail { max-height: none; border-top: 1px solid #cfd8df; border-left: 0; }
-  .municipality-detail__empty { min-height: 170px; }
+  .hover-card--municipality { bottom: 44px; max-height: min(62dvh, 620px); }
 }

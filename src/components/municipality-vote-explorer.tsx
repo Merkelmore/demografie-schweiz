@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, X } from "lucide-react";
 import { feature } from "topojson-client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { cantons, getCanton } from "@/lib/cantons";
+import { getCanton } from "@/lib/cantons";
 
 type Position = [number, number];
 type MunicipalityFeature = {
@@ -25,6 +25,7 @@ const cantonNumbers: Record<string, number> = {
 const viewBox = { height: 560, padding: 24, width: 800 };
 const number = new Intl.NumberFormat("de-CH");
 const percent = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const hoverDelay = 180;
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${date}T00:00:00Z`));
@@ -54,12 +55,23 @@ function resultFor(proposal: Proposal, municipalityId: number) {
   return { eligibleVoters, noVotes, turnout, yesPct, yesVotes };
 }
 
-export function MunicipalityVoteExplorer({ cantonCode, onBack, onCantonChange }: { cantonCode: string; onBack: () => void; onCantonChange: (code: string) => void }) {
+function formatPercent(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? `${percent.format(value)} %` : "Nicht verfügbar";
+}
+
+function formatNumber(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? number.format(value) : "Nicht verfügbar";
+}
+
+export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: string; onBack: () => void }) {
   const [data, setData] = useState<VoteData>();
   const [features, setFeatures] = useState<MunicipalityFeature[]>([]);
   const [error, setError] = useState<string>();
-  const [selectedMunicipality, setSelectedMunicipality] = useState<number>();
+  const [hoveredMunicipality, setHoveredMunicipality] = useState<number | null>(null);
+  const [pinnedMunicipality, setPinnedMunicipality] = useState<number | null>(null);
+  const [cardPosition, setCardPosition] = useState({ x: 24, y: 76 });
   const [selectedProposalId, setSelectedProposalId] = useState<number>();
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canton = getCanton(cantonCode);
 
   useEffect(() => {
@@ -81,8 +93,73 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack, onCantonChange }:
   const cantonFeatures = useMemo(() => features.filter((municipality) => municipality.properties.kantId === cantonNumbers[cantonCode]), [cantonCode, features]);
   const allProposals = useMemo(() => data?.votingDays.flatMap((day) => day.proposals.map((proposal) => ({ ...proposal, date: day.date }))) ?? [], [data]);
   const activeProposal = allProposals.find((proposal) => proposal.id === selectedProposalId) ?? allProposals[0];
+  const selectedMunicipality = pinnedMunicipality ?? hoveredMunicipality;
   const selected = cantonFeatures.find((municipality) => municipality.properties.vogeId === selectedMunicipality);
   const extent = useMemo(() => cantonFeatures.length > 0 ? bounds(cantonFeatures) : undefined, [cantonFeatures]);
+
+  useEffect(() => () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+  }, []);
+
+  useEffect(() => {
+    function dismissMunicipalityCard(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      setPinnedMunicipality(null);
+      setHoveredMunicipality(null);
+    }
+
+    window.addEventListener("keydown", dismissMunicipalityCard);
+    return () => window.removeEventListener("keydown", dismissMunicipalityCard);
+  }, []);
+
+  function clearHoverTimer() {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+  }
+
+  function positionCard(position: { x: number; y: number }) {
+    const cardWidth = 410;
+    const cardHeight = 620;
+    setCardPosition({
+      x: Math.max(12, Math.min(position.x + 16, window.innerWidth - cardWidth - 12)),
+      y: Math.max(64, Math.min(position.y + 16, window.innerHeight - cardHeight - 12)),
+    });
+  }
+
+  function hoverMunicipality(id: number, position: { x: number; y: number }) {
+    if (pinnedMunicipality !== null) return;
+    positionCard(position);
+    if (hoveredMunicipality === id) return;
+    clearHoverTimer();
+    hoverTimer.current = setTimeout(() => {
+      setHoveredMunicipality(id);
+      hoverTimer.current = null;
+    }, hoverDelay);
+  }
+
+  function leaveMunicipality() {
+    if (pinnedMunicipality !== null) return;
+    clearHoverTimer();
+    hoverTimer.current = setTimeout(() => {
+      setHoveredMunicipality(null);
+      hoverTimer.current = null;
+    }, hoverDelay);
+  }
+
+  function pinMunicipality(id: number, position?: { x: number; y: number }) {
+    clearHoverTimer();
+    if (position) positionCard(position);
+    if (pinnedMunicipality === id) {
+      setPinnedMunicipality(null);
+      setHoveredMunicipality(null);
+      return;
+    }
+    setPinnedMunicipality(id);
+    setHoveredMunicipality(id);
+  }
 
   if (error) return <main className="municipality-page"><p className="municipality-status" role="alert">{error}</p></main>;
   if (!data || !activeProposal || !extent) return <main className="municipality-page"><p className="municipality-status" aria-live="polite">Gemeinde-Abstimmungen werden geladen …</p></main>;
@@ -94,22 +171,23 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack, onCantonChange }:
           <div className="municipality-map-toolbar">
             <button className="municipality-back" type="button" onClick={onBack}><ArrowLeft size={16} />Kantonskarte</button>
             <div><span>LETZTE DREI ABSTIMMUNGSTAGE</span><h1>Gemeinden in {canton?.name.de}</h1></div>
-            <label className="municipality-canton-select"><span>Kanton</span><select aria-label="Kanton für Gemeinde-Abstimmungen" value={cantonCode} onChange={(event) => onCantonChange(event.target.value)}>{cantons.map((item) => <option key={item.code} value={item.code}>{item.name.de}</option>)}</select><ChevronDown size={14} /></label>
             <label className="municipality-proposal-select"><span>Vorlage</span><select aria-label="Abstimmungsvorlage" value={activeProposal.id} onChange={(event) => setSelectedProposalId(Number(event.target.value))}>{allProposals.map((proposal) => <option key={proposal.id} value={proposal.id}>{formatDate(proposal.date)} · {proposal.title}</option>)}</select><ChevronDown size={14} /></label>
           </div>
           <svg className="municipality-map" viewBox={`0 0 ${viewBox.width} ${viewBox.height}`} role="group" aria-label={`Abstimmungsresultate der Gemeinden in ${canton?.name.de}`}>
             {cantonFeatures.map((municipality) => {
               const result = resultFor(activeProposal, municipality.properties.vogeId);
               const isSelected = municipality.properties.vogeId === selectedMunicipality;
-              const lightness = 94 - (result.yesPct ?? 50) * 0.45;
-              return <path key={municipality.properties.vogeId} aria-label={`${municipality.properties.vogeName}: Ja ${percent.format(result.yesPct)} Prozent`} className={`municipality-region ${isSelected ? "selected" : ""}`} d={pathFor(municipality, extent)} fill={`hsl(356 57% ${lightness}%)`} role="button" tabIndex={0} onClick={() => setSelectedMunicipality(municipality.properties.vogeId)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedMunicipality(municipality.properties.vogeId); } }} />;
+              const yesPct = typeof result.yesPct === "number" && Number.isFinite(result.yesPct) ? result.yesPct : 50;
+              const lightness = 94 - yesPct * 0.45;
+              return <path key={municipality.properties.vogeId} aria-label={`${municipality.properties.vogeName}: Ja ${formatPercent(result.yesPct)}`} className={`municipality-region ${isSelected ? "selected" : ""}`} d={pathFor(municipality, extent)} fill={`hsl(356 57% ${lightness}%)`} role="button" tabIndex={0} onClick={(event) => pinMunicipality(municipality.properties.vogeId, { x: event.clientX, y: event.clientY })} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pinMunicipality(municipality.properties.vogeId); } }} onPointerEnter={(event) => { if (event.pointerType === "mouse") hoverMunicipality(municipality.properties.vogeId, { x: event.clientX, y: event.clientY }); }} onPointerLeave={(event) => { if (event.pointerType === "mouse") leaveMunicipality(); }} />;
             })}
           </svg>
           <p className="municipality-legend"><span>Weniger Ja</span><i aria-hidden="true" /><span>Mehr Ja</span>{activeProposal.provisional && <strong>Provisorische Resultate</strong>}</p>
         </div>
-        <aside className="municipality-detail" aria-live="polite">
-          {selected ? <><header><span>GEMEINDE</span><h2>{selected.properties.vogeName}</h2></header><div className="municipality-detail__content"><p className="municipality-detail__intro">Resultate aller Vorlagen der letzten drei eidgenössischen Abstimmungstage.</p>{data.votingDays.map((day) => <section key={day.date} className="municipality-voting-day"><h3>{formatDate(day.date)}</h3>{day.proposals.map((proposal) => { const result = resultFor(proposal, selected.properties.vogeId); return <div key={proposal.id}><strong>{proposal.title}</strong><span>Ja {percent.format(result.yesPct)} % · Beteiligung {percent.format(result.turnout)} %</span><small>{number.format(result.yesVotes)} Ja · {number.format(result.noVotes)} Nein · {number.format(result.eligibleVoters)} Stimmberechtigte{proposal.provisional ? " · provisorisch" : ""}</small></div>; })}</section>)}</div></> : <div className="municipality-detail__empty"><span>GEMEINDE</span><h2>Gemeinde auswählen</h2><p>Wähle eine Fläche auf der Karte, um die Resultate aller Vorlagen der letzten drei Abstimmungstage zu sehen.</p></div>}
-        </aside>
+        {selected && <aside className={`hover-card hover-card--municipality ${pinnedMunicipality !== null ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label={`Abstimmungsresultate für ${selected.properties.vogeName}`} style={{ left: cardPosition.x, top: cardPosition.y }}>
+          <div className="hover-card__header"><div><span>GEMEINDE</span><h2>{selected.properties.vogeName}</h2></div>{pinnedMunicipality !== null && <button type="button" aria-label="Fixierte Gemeindedaten schliessen" onClick={() => { setPinnedMunicipality(null); setHoveredMunicipality(null); }}><X size={16} /></button>}</div>
+          <div className="municipality-hover-card__content"><p>Resultate aller Vorlagen der letzten drei eidgenössischen Abstimmungstage.</p>{data.votingDays.map((day) => <section key={day.date} className="municipality-voting-day"><h3>{formatDate(day.date)}</h3>{day.proposals.map((proposal) => { const result = resultFor(proposal, selected.properties.vogeId); return <div key={proposal.id}><strong>{proposal.title}</strong><span>Ja {formatPercent(result.yesPct)} · Beteiligung {formatPercent(result.turnout)}</span><small>{formatNumber(result.yesVotes)} Ja · {formatNumber(result.noVotes)} Nein · {formatNumber(result.eligibleVoters)} Stimmberechtigte{proposal.provisional ? " · provisorisch" : ""}</small></div>; })}</section>)}</div>
+        </aside>}
       </section>
       <p className="municipality-source">Quelle: Bundesamt für Statistik (BFS), eidgenössische Abstimmungsresultate auf Gemeindeebene. Die Karte enthält die 2&apos;105 räumlichen Gemeinden; 12 Auslandsgemeinden ohne Fläche sind nicht kartiert.</p>
     </main>

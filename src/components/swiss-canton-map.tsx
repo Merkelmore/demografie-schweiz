@@ -243,7 +243,7 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
 
         const cantonCode = canton.code;
         const isSelected = cantonCode === selectedCode;
-        const label = language === "de" ? `${canton.name.de} auswählen` : `Select ${canton.name.en}`;
+        const label = language === "de" ? `${canton.name.de}: Gemeinde-Abstimmungen öffnen` : `Open municipality votes for ${canton.name.en}`;
         const value = values?.[cantonCode];
         const normalizedValue = hasValues && value !== undefined ? maximumValue > minimumValue ? Math.max(0, Math.min(1, (value - minimumValue) / (maximumValue - minimumValue))) : 0.5 : null;
         const lightness = normalizedValue === null ? 88 : 91 - normalizedValue * (valueDomain ? 43 : 35);

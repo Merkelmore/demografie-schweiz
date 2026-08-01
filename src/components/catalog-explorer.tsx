@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Building2, Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
+import { BookOpen, Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
@@ -62,7 +62,6 @@ function formatElectionShares(partyShares: CantonCardResponse["election"]["party
 export function CatalogExplorer() {
   const [mapMetric, setMapMetric] = useState<CategoryCode>("population_total");
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
-  const [pinnedCode, setPinnedCode] = useState<string | null>(null);
   const [cardPosition, setCardPosition] = useState({ x: 24, y: 76 });
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
@@ -75,7 +74,7 @@ export function CatalogExplorer() {
   const [municipalityCanton, setMunicipalityCanton] = useState<string | null>(null);
   const cardCache = useRef(new Map<string, CachedCard>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeCode = pinnedCode ?? hoveredCode;
+  const activeCode = hoveredCode;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -160,7 +159,6 @@ export function CatalogExplorer() {
           setMunicipalityCanton(null);
           return;
         }
-        setPinnedCode(null);
         setHoveredCode(null);
       }
     }
@@ -180,7 +178,7 @@ export function CatalogExplorer() {
   const culturalScore = metrics.get("cultural_enrichment_score");
   const activeCategory = categories.find((category) => category.code === mapMetric) ?? categories[0];
   const activeMetric = metrics.get(mapMetric);
-  const isCardVisible = pinnedCode !== null || hoveredCode !== null;
+  const isCardVisible = hoveredCode !== null;
 
   function clearHoverTimer() {
     if (hoverTimer.current) {
@@ -199,7 +197,6 @@ export function CatalogExplorer() {
   }
 
   function hoverCanton(code: string, position: { x: number; y: number }) {
-    if (pinnedCode) return;
     positionCard(position);
     if (hoveredCode === code) return;
 
@@ -219,7 +216,6 @@ export function CatalogExplorer() {
   }
 
   function leaveCanton() {
-    if (pinnedCode) return;
     clearHoverTimer();
     hoverTimer.current = setTimeout(() => {
       setHoveredCode(null);
@@ -229,14 +225,8 @@ export function CatalogExplorer() {
 
   function selectCanton(code: string) {
     clearHoverTimer();
-    setCardError(undefined);
-    if (pinnedCode === code) {
-      setPinnedCode(null);
-      setHoveredCode(null);
-      return;
-    }
-    setPinnedCode(code);
-    setHoveredCode(code);
+    setHoveredCode(null);
+    setMunicipalityCanton(code);
   }
 
   if (municipalityCanton) {
@@ -245,7 +235,7 @@ export function CatalogExplorer() {
         <div className="site-header__identity"><span className="site-brand">Cultural Enrichment Radar</span></div>
         <div className="site-header__actions"><button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(null)}><MapIcon size={15} />Kantonskarte</button></div>
       </header>
-      <MunicipalityVoteExplorer cantonCode={municipalityCanton} key={municipalityCanton} onBack={() => setMunicipalityCanton(null)} onCantonChange={setMunicipalityCanton} />
+      <MunicipalityVoteExplorer cantonCode={municipalityCanton} key={municipalityCanton} onBack={() => setMunicipalityCanton(null)} />
       <footer className="site-footer"><span>BFS · Gemeinde-Abstimmungsresultate</span><span>2026</span></footer>
     </div>;
   }
@@ -259,18 +249,17 @@ export function CatalogExplorer() {
           <label className="global-category global-category--mobile"><MapIcon className="global-category__icon" size={15} /><select aria-label="Kartenkategorie" value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.shortLabel}</option>)}</select><ChevronDown size={14} /></label>
         </div>
         <div className="site-header__actions">
-          <button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(pinnedCode ?? "ZH")}><Building2 size={15} />Gemeinde-Abstimmungen</button>
           <button className="methodology-trigger" type="button" onClick={() => setIsSourcesOpen(true)}><BookOpen size={15} />Quellen</button>
           <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />Was ist Cultural Enrichment Score?</button>
         </div>
       </header>
       <main className="map-explorer" aria-label="Interaktive Karte der Schweizer Kantone">
-        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={pinnedCode ?? hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
+        <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={hoveredCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
         {mapError && <span className="map-availability">{mapError}</span>}
         {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
 
-        {isCardVisible && <aside className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label="Kantonsdaten" style={{ left: cardPosition.x, top: cardPosition.y }}>
-          <div className="hover-card__header"><div><span>KANTON</span><h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1></div>{pinnedCode && <button type="button" aria-label="Fixierte Kantonsdaten schliessen" onClick={() => { setPinnedCode(null); setHoveredCode(null); }}><X size={16} /></button>}</div>
+        {isCardVisible && <aside className="hover-card" aria-live="polite" aria-label="Kantonsdaten" style={{ left: cardPosition.x, top: cardPosition.y }}>
+          <div className="hover-card__header"><div><span>KANTON</span><h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1></div></div>
           {cardError && <p className="hover-card__error">{cardError}</p>}
           {!cardError && <>
             {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric) : formatMetric(activeMetric)}</strong></div>}
