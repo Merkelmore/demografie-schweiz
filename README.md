@@ -2,6 +2,12 @@
 
 Interaktiver Explorer für amtliche Schweizer Kennzahlen. Die Anwendung zeigt nur Werte mit dokumentierter Quelle, Datenstand und Geografieebene. Fehlende Gemeindewerte werden nicht geschätzt und nicht durch Kantonswerte ersetzt.
 
+## GG deployment command
+
+Production installs the shared `gg-deploy` command at `/usr/local/bin/gg-deploy`. It updates a Git checkout as its owning user and rebuilds either `docker-compose.production.yml` (with `.env.production`) or `docker-compose.yml` (with `.env`). It only accepts project directories below `/srv` and uses `git merge --ff-only`, so it does not overwrite local recovery changes.
+
+To register a future GG project, place its checkout under `/srv`, provide one of those Docker Compose files, and invoke `gg-deploy /srv/<project-directory> <branch>` from its deployment workflow. Domain routing remains explicit in that project's Compose/Caddy configuration.
+
 ## Production deployment (Supabase + Hetzner)
 
 The production setup is built for one Next.js container, a managed Supabase PostgreSQL database, and Caddy as the only public reverse proxy. The application and the database are never published directly: only Caddy listens on ports `80` and `443`.
