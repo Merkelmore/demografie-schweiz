@@ -191,6 +191,7 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
         setIsPanning(true);
       }
       setZoom(pinchRef.current.zoom * (distance / pinchRef.current.distance));
+      setOffset(clampOffset(mapOffsetRef.current, event.currentTarget));
       return;
     }
 
