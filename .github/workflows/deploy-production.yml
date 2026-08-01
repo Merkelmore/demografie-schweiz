@@ -41,8 +41,9 @@ jobs:
             cd /srv/cultural-enrichment-radar
             test -f docker-compose.production.yml
             test -f .env.production
-            git fetch origin master
-            git merge --ff-only origin/master
+            repo_owner="$(stat -c '%U' .)"
+            sudo -H -u "$repo_owner" git fetch origin master
+            sudo -H -u "$repo_owner" git merge --ff-only origin/master
             docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
             docker compose --env-file .env.production -f docker-compose.production.yml ps
           REMOTE
