@@ -8,6 +8,7 @@ import { getCanton } from "@/lib/cantons";
 import { CompassMiniature } from "@/components/compass-miniature";
 import { PoliticalCompassModal } from "@/components/political-compass-modal";
 import { compassSpread, quadrantFill, usePoliticalCompass } from "@/lib/political-compass";
+import { useTranslation } from "@/lib/i18n";
 import { useHoverCardPlacement } from "@/lib/use-hover-card";
 
 type Position = [number, number];
@@ -27,8 +28,6 @@ const cantonNumbers: Record<string, number> = {
   SH: 14, AR: 15, AI: 16, SG: 17, GR: 18, AG: 19, TG: 20, TI: 21, VD: 22, VS: 23, NE: 24, GE: 25, JU: 26,
 };
 const viewBox = { height: 560, padding: 24, width: 800 };
-const number = new Intl.NumberFormat("de-CH");
-const percent = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 const cardWidth = 410;
 const hoverDelay = 110;
 const uncoloredMunicipality = "#dde4e8";
@@ -62,15 +61,16 @@ function eligibleVoters(proposals: Proposal[], municipalityId: number) {
   return proposals.map((proposal) => resultFor(proposal, municipalityId).eligibleVoters).find((value) => typeof value === "number" && Number.isFinite(value));
 }
 
-function formatPercent(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value) ? `${percent.format(value)} %` : "Nicht verfügbar";
+function formatPercent(value: number | undefined, language: string, unavailable: string) {
+  return typeof value === "number" && Number.isFinite(value) ? `${new Intl.NumberFormat(`${language}-CH`, { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value)} %` : unavailable;
 }
 
-function formatNumber(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value) ? number.format(value) : "Nicht verfügbar";
+function formatNumber(value: number | undefined, language: string, unavailable: string) {
+  return typeof value === "number" && Number.isFinite(value) ? new Intl.NumberFormat(`${language}-CH`).format(value) : unavailable;
 }
 
 export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: string; onBack: () => void }) {
+  const { language, t } = useTranslation();
   const [data, setData] = useState<VoteData>();
   const [features, setFeatures] = useState<MunicipalityFeature[]>([]);
   const [error, setError] = useState<string>();
@@ -93,10 +93,10 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: s
       setData(votes);
       setFeatures(collection.features);
     }).catch(() => {
-      if (active) setError("Die BFS-Abstimmungsdaten konnten nicht geladen werden.");
+      if (active) setError(t("municipalityFailed"));
     });
     return () => { active = false; };
-  }, []);
+  }, [t]);
 
   const cantonFeatures = useMemo(() => features.filter((municipality) => municipality.properties.kantId === cantonNumbers[cantonCode]), [cantonCode, features]);
   const proposals = useMemo(() => data?.votingDays.flatMap((day) => day.proposals) ?? [], [data]);
@@ -164,19 +164,19 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: s
   }
 
   if (error) return <main className="municipality-page"><p className="municipality-status" role="alert">{error}</p></main>;
-  if (!data || !extent || (!compass.data && !compass.error)) return <main className="municipality-page"><p className="municipality-status" aria-live="polite">Gemeinde-Abstimmungen werden geladen …</p></main>;
+  if (!data || !extent || (!compass.data && !compass.error)) return <main className="municipality-page"><p className="municipality-status" aria-live="polite">{t("municipalityLoading")}</p></main>;
 
   const selectedPoint = selected && compassPoints.get(String(selected.properties.vogeId));
 
   return (
-    <main className="municipality-page" aria-label={`Gemeinde-Abstimmungen im Kanton ${canton?.name.de ?? cantonCode}`}>
+    <main className="municipality-page" aria-label={t("municipalitiesIn", { canton: canton?.name[language] ?? cantonCode })}>
       <section className="municipality-explorer">
         <div className="municipality-map-workspace">
           <div className="municipality-map-toolbar">
-            <button className="municipality-back" type="button" onClick={onBack}><ArrowLeft size={16} />Kantonskarte</button>
-            <h1>Gemeinden in {canton?.name.de}</h1>
+            <button className="municipality-back" type="button" onClick={onBack}><ArrowLeft size={16} />{t("backToCantonMap")}</button>
+            <h1>{t("municipalitiesIn", { canton: canton?.name[language] ?? cantonCode })}</h1>
           </div>
-          <svg className="municipality-map" viewBox={`0 0 ${viewBox.width} ${viewBox.height}`} role="group" aria-label={`Gemeinden in ${canton?.name.de}, eingefärbt nach ihrer Position im politischen Kompass`}>
+          <svg className="municipality-map" viewBox={`0 0 ${viewBox.width} ${viewBox.height}`} role="group" aria-label={t("municipalityMapAria", { canton: canton?.name[language] ?? cantonCode })}>
             {cantonFeatures.map((municipality) => {
               const point = compassPoints.get(String(municipality.properties.vogeId));
               const isSelected = municipality.properties.vogeId === selectedMunicipality;
@@ -184,26 +184,26 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: s
             })}
           </svg>
         </div>
-        {selected && <aside ref={cardRef} className={`hover-card hover-card--municipality ${pinnedMunicipality !== null ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label={`Abstimmungsresultate für ${selected.properties.vogeName}`} style={cardStyle}>
-          <div className="hover-card__header"><h2>{selected.properties.vogeName}</h2>{pinnedMunicipality !== null && <button type="button" aria-label="Fixierte Gemeindedaten schliessen" onClick={() => { setPinnedMunicipality(null); setHoveredMunicipality(null); }}><X size={16} /></button>}</div>
+        {selected && <aside ref={cardRef} className={`hover-card hover-card--municipality ${pinnedMunicipality !== null ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label={t("municipalityResultsAria", { municipality: selected.properties.vogeName })} style={cardStyle}>
+          <div className="hover-card__header"><h2>{selected.properties.vogeName}</h2>{pinnedMunicipality !== null && <button type="button" aria-label={t("closeMunicipality")} onClick={() => { setPinnedMunicipality(null); setHoveredMunicipality(null); }}><X size={16} /></button>}</div>
           <div className="municipality-hover-card__content">
             <div className="municipality-summary">
-              <div className="municipality-summary__stat"><span>Stimmberechtigte</span><strong>{formatNumber(eligibleVoters(proposals, selected.properties.vogeId))}</strong></div>
+              <div className="municipality-summary__stat"><span>{t("eligibleVoters")}</span><strong>{formatNumber(eligibleVoters(proposals, selected.properties.vogeId), language, t("unavailable"))}</strong></div>
               {selectedPoint
-                ? <CompassMiniature point={selectedPoint} spread={spread} title={`Position von ${selected.properties.vogeName} im politischen Kompass`} />
-                : <p className="municipality-summary__missing">Keine Kompassposition verfügbar.</p>}
-              <button type="button" onClick={() => setIsCompassOpen(true)}>Politischer Kompass</button>
+                ? <CompassMiniature point={selectedPoint} spread={spread} title={t("municipalityPosition", { municipality: selected.properties.vogeName })} />
+                : <p className="municipality-summary__missing">{t("noCompassPosition")}</p>}
+              <button type="button" onClick={() => setIsCompassOpen(true)}>{t("politicalCompass")}</button>
             </div>
             <ul className="municipality-proposals">
               {proposals.map((proposal) => {
                 const result = resultFor(proposal, selected.properties.vogeId);
-                return <li key={proposal.id}><strong>{proposal.title}</strong><span>Ja {formatPercent(result.yesPct)} · Beteiligung {formatPercent(result.turnout)}</span><small>{formatNumber(result.yesVotes)} Ja · {formatNumber(result.noVotes)} Nein{proposal.provisional ? " · provisorisch" : ""}</small></li>;
+                return <li key={proposal.id}><strong>{proposal.title}</strong><span>{t("yes")} {formatPercent(result.yesPct, language, t("unavailable"))} · {t("turnout")} {formatPercent(result.turnout, language, t("unavailable"))}</span><small>{formatNumber(result.yesVotes, language, t("unavailable"))} {t("yes")} · {formatNumber(result.noVotes, language, t("unavailable"))} {t("no")}{proposal.provisional ? ` · ${t("provisional")}` : ""}</small></li>;
               })}
             </ul>
           </div>
         </aside>}
       </section>
-      <p className="municipality-source">Quelle: Bundesamt für Statistik (BFS), eidgenössische Abstimmungsresultate auf Gemeindeebene. Die Karte enthält die 2&apos;105 räumlichen Gemeinden; 12 Auslandsgemeinden ohne Fläche sind nicht kartiert.</p>
+      <p className="municipality-source">{t("municipalSource")}</p>
       {isCompassOpen && selected && <PoliticalCompassModal mode="municipalities" initialCantonCode={cantonCode} originMunicipalityId={String(selected.properties.vogeId)} onClose={() => setIsCompassOpen(false)} />}
     </main>
   );

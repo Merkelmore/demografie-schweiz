@@ -4,6 +4,7 @@ import { Info, RotateCcw, X } from "lucide-react";
 import { useMemo, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { cantons } from "@/lib/cantons";
+import { useTranslation } from "@/lib/i18n";
 import { cantonColor, compassChart, compassSpread, pointCanton, toChartPoint, usePoliticalCompass, type CompassPoint } from "@/lib/political-compass";
 
 type CompassMode = "cantons" | "municipalities";
@@ -27,6 +28,7 @@ function CompassLabel({ position, text, tone, zoom }: { position: { x: number; y
 }
 
 export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, initialCantonCode }: { mode: CompassMode; onClose: () => void; originMunicipalityId?: string; initialCantonCode?: string }) {
+  const { language, t } = useTranslation();
   const dialog = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const drag = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | undefined>(undefined);
@@ -54,7 +56,7 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
   const visiblePoints = useMemo(() => points.filter((point) => !hidden.has(pointCanton(point) ?? "")), [hidden, points]);
   const origin = mode === "municipalities" ? visiblePoints.find(({ id }) => id === originMunicipalityId) : undefined;
   const missingOrigin = mode === "municipalities" && originMunicipalityId && data && !data.municipalities.some(({ id }) => id === originMunicipalityId);
-  const title = mode === "cantons" ? "Politischer Kompass der Kantone" : "Politischer Kompass der Gemeinden";
+  const title = mode === "cantons" ? t("compassCantons") : t("compassMunicipalities");
 
   function resetView() {
     setPan({ x: 0, y: 0 });
@@ -87,31 +89,31 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
   return <div className="compass-backdrop" role="presentation" onMouseDown={onClose}>
     <section ref={dialog} className="compass-dialog" role="dialog" aria-modal="true" aria-labelledby="compass-title" onKeyDown={keepFocusInDialog} onMouseDown={(event) => event.stopPropagation()}>
       <header className="compass-dialog__header">
-        <h2 id="compass-title">Politischer Kompass</h2>
-        <div className="compass-dialog__actions"><button type="button" className="compass-info-button" aria-expanded={methodOpen} onClick={() => setMethodOpen((open) => !open)}><Info size={17} />Berechnung</button><button ref={closeButton} type="button" aria-label="Politischen Kompass schliessen" onClick={onClose}><X size={18} /></button></div>
+        <h2 id="compass-title">{t("politicalCompass")}</h2>
+        <div className="compass-dialog__actions"><button type="button" className="compass-info-button" aria-expanded={methodOpen} onClick={() => setMethodOpen((open) => !open)}><Info size={17} />{t("methodology")}</button><button ref={closeButton} type="button" aria-label={t("compassClose")} onClick={onClose}><X size={18} /></button></div>
       </header>
       <div className="compass-filter">
-        <div className="compass-filter__lead"><span id="compass-filter-label">Kantone</span><button type="button" onClick={() => setHidden(new Set())}>Alle</button><button type="button" onClick={() => setHidden(new Set(cantons.map(({ code }) => code)))}>Keine</button></div>
+        <div className="compass-filter__lead"><span id="compass-filter-label">{t("cantons")}</span><button type="button" onClick={() => setHidden(new Set())}>{t("all")}</button><button type="button" onClick={() => setHidden(new Set(cantons.map(({ code }) => code)))}>{t("none")}</button></div>
         <ul className="compass-filter__list" aria-labelledby="compass-filter-label">
           {cantons.map((canton) => <li key={canton.code} style={{ "--canton-color": cantonColor(canton.code) } as CSSProperties}>
-            <label><input type="checkbox" aria-label={canton.name.de} checked={!hidden.has(canton.code)} onChange={() => toggleCanton(canton.code)} /><i aria-hidden="true" />{canton.code}</label>
+            <label><input type="checkbox" aria-label={canton.name[language]} checked={!hidden.has(canton.code)} onChange={() => toggleCanton(canton.code)} /><i aria-hidden="true" />{canton.code}</label>
           </li>)}
         </ul>
       </div>
-      {methodOpen && data && <section className="compass-method" aria-label="Berechnung des politischen Kompasses">
-        <p>Für jede Vorlage wird der exakte Ja-Anteil einer Gemeinde mit dem offiziellen Schweizer Ja-Anteil verglichen. Die Differenz wird durch die Streuung aller Gemeindeanteile geteilt und auf ±3 Standardabweichungen begrenzt.</p>
-        <p>Diese standardisierten Differenzen werden mit den Gewichten unten zu X (wirtschaftlich links ↔ rechts) und Y (libertär ↔ autoritär) summiert. Für die Darstellung wird jede Achse so gedehnt, dass die äussersten Punkte den Rand erreichen; die Reihenfolge der Positionen bleibt dabei erhalten. Das sind relative Modellpositionen, keine objektiven Tatsachen über Menschen oder Orte.</p>
-        <div className="compass-method__table-wrap"><table><thead><tr><th>Vorlage</th><th>Wirtschaft</th><th>Autorität</th></tr></thead><tbody>{data.methodology.weights.map((weight) => <tr key={weight.id}><td>{weight.title}</td><td>{formatWeight(weight.economicWeight)}</td><td>{formatWeight(weight.authorityWeight)}</td></tr>)}</tbody></table></div>
-        <p className="compass-method__excluded">Ausgeschlossen: {Object.values(data.methodology.excludedProposals).join(" · ")}</p>
+      {methodOpen && data && <section className="compass-method" aria-label={t("compassCalculationAria")}>
+        <p>{t("compassMethodOne")}</p>
+        <p>{t("compassMethodTwo")}</p>
+        <div className="compass-method__table-wrap"><table><thead><tr><th>{t("proposal")}</th><th>{t("economy")}</th><th>{t("authority")}</th></tr></thead><tbody>{data.methodology.weights.map((weight) => <tr key={weight.id}><td>{weight.title}</td><td>{formatWeight(weight.economicWeight)}</td><td>{formatWeight(weight.authorityWeight)}</td></tr>)}</tbody></table></div>
+        <p className="compass-method__excluded">{t("excluded")}: {Object.values(data.methodology.excludedProposals).join(" · ")}</p>
       </section>}
-      {missingOrigin && <p className="compass-notice">Für die geöffnete aktuelle Gemeinde liegen nicht alle neun zuordenbaren Resultate vor. Sie erhält deshalb keinen erfundenen Punkt; der Kompass zeigt weiterhin alle verfügbaren Gemeinden.</p>}
+      {missingOrigin && <p className="compass-notice">{t("compassMissing")}</p>}
       <div className="compass-workspace">
-        {error && <p className="compass-status" role="alert">{error}</p>}
-        {!error && !data && <p className="compass-status" aria-live="polite">Kompassdaten werden geladen …</p>}
+        {error && <p className="compass-status" role="alert">{t("compassFailed")}</p>}
+        {!error && !data && <p className="compass-status" aria-live="polite">{t("compassLoading")}</p>}
         {data && <>
           <div className="compass-plot">
-          <span className="compass-plot__axis compass-plot__axis--top">Autoritär</span>
-          <span className="compass-plot__axis compass-plot__axis--left">Links</span>
+          <span className="compass-plot__axis compass-plot__axis--top">{t("authoritarian")}</span>
+          <span className="compass-plot__axis compass-plot__axis--left">{t("left")}</span>
           <svg className="compass-chart" viewBox={`0 0 ${compassChart.size} ${compassChart.size}`} role="img" aria-label={`${title} mit ${visiblePoints.length} Punkten`} onWheel={(event) => { event.preventDefault(); const nextZoom = Math.max(1, Math.min(8, zoom * (event.deltaY < 0 ? 1.18 : 0.85))); setZoom(nextZoom); setPan(clampPan(pan, nextZoom)); }} onPointerDown={(event) => { drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: pan.x, originY: pan.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { if (!drag.current || drag.current.pointerId !== event.pointerId) return; const bounds = event.currentTarget.getBoundingClientRect(); const factor = compassChart.size / bounds.width; setPan(clampPan({ x: drag.current.originX + (event.clientX - drag.current.x) * factor, y: drag.current.originY + (event.clientY - drag.current.y) * factor })); }} onPointerUp={(event) => { if (drag.current?.pointerId === event.pointerId) drag.current = undefined; }}>
             <g transform={`translate(${pan.x} ${pan.y}) translate(${compassChart.center} ${compassChart.center}) scale(${zoom}) translate(${-compassChart.center} ${-compassChart.center})`}>
               <rect className="compass-quadrant compass-quadrant--authoritarian-left" x={quadrant.origin} y={quadrant.origin} width={quadrant.side} height={quadrant.side} />
@@ -125,13 +127,13 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
               {hovered && <CompassLabel position={toChartPoint(hovered, spread)} text={hovered.cantonName ? `${hovered.name} · ${hovered.cantonName}` : hovered.name} tone="hovered" zoom={zoom} />}
             </g>
           </svg>
-          <button className="compass-reset" type="button" aria-label="Kompassansicht zurücksetzen" title="Ansicht zurücksetzen" onClick={resetView}><RotateCcw size={15} /></button>
-          <span className="compass-plot__axis compass-plot__axis--right">Rechts</span>
-          <span className="compass-plot__axis compass-plot__axis--bottom">Libertär</span>
+          <button className="compass-reset" type="button" aria-label={t("resetCompass")} title={t("resetView")} onClick={resetView}><RotateCcw size={15} /></button>
+          <span className="compass-plot__axis compass-plot__axis--right">{t("right")}</span>
+          <span className="compass-plot__axis compass-plot__axis--bottom">{t("libertarian")}</span>
           </div>
         </>}
       </div>
-      {data && <footer className="compass-dialog__footer">Quelle: BFS voteinfo, eidgenössische Abstimmungen auf Gemeindeebene. {data.coverage.missingMunicipalityIds.length === 0 ? "Alle aktuellen räumlichen BFS-Gemeinden sind zugeordnet." : `${data.coverage.missingMunicipalityIds.length} aktuelle Gemeinden ohne vollständige Zuordnung sind nicht positioniert.`}</footer>}
+      {data && <footer className="compass-dialog__footer">{t("compassFooter")} {data.coverage.missingMunicipalityIds.length === 0 ? t("allMunicipalitiesMapped") : t("missingMunicipalities", { count: data.coverage.missingMunicipalityIds.length })}</footer>}
     </section>
   </div>;
 }

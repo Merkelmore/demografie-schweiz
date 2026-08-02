@@ -1,26 +1,15 @@
 "use client";
 
-import { ArrowDown, BookOpen, Calculator, ChevronDown, Map as MapIcon, X } from "lucide-react";
+import { ArrowDown, BookOpen, Calculator, ChevronDown, Languages, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
 import { MunicipalityVoteExplorer } from "@/components/municipality-vote-explorer";
 import { PoliticalCompassModal } from "@/components/political-compass-modal";
 import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
+import { getCanton } from "@/lib/cantons";
+import { LanguageProvider, locales, useTranslation } from "@/lib/i18n";
 import { useHoverCardPlacement } from "@/lib/use-hover-card";
-
-const number = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
-
-const categories = [
-  { code: "population_total", label: "Einwohnerzahl", shortLabel: "Einwohner" },
-  { code: "crime_per_100000", label: "Kriminalität (PKS)", shortLabel: "Kriminalität" },
-  { code: "asylum_pending_per_1000", label: "Asylverfahren", shortLabel: "Asyl" },
-  { code: "population_foreign_percent", label: "Ausländische Bevölkerung", shortLabel: "Ausländer" },
-  { code: "fertility_tfr", label: "Fertilitätsrate", shortLabel: "Fertilität" },
-  { code: "unemployment_rate", label: "Erwerbslosenquote (BFS)", shortLabel: "BFS-Quote" },
-  { code: "political_orientation_score", label: "Politische Tendenz", shortLabel: "Politik" },
-  { code: "cultural_enrichment_score", label: "Cultural Enrichment Score", shortLabel: "CES" },
-] as const;
 
 const cardCacheTtl = 5 * 60 * 1000;
 const cardWidth = 340;
@@ -29,36 +18,44 @@ const balancedPoliticalScoreThreshold = 0.025;
 const strongPoliticalScoreThreshold = 0.1;
 
 type Metric = CantonCardResponse["metrics"][number];
-type CategoryCode = (typeof categories)[number]["code"];
+type CategoryCode = "population_total" | "crime_per_100000" | "asylum_pending_per_1000" | "population_foreign_percent" | "fertility_tfr" | "unemployment_rate" | "political_orientation_score" | "cultural_enrichment_score";
 type CachedCard = { expiresAt: number; value: CantonCardResponse };
-type Source = { metric: string; referenceDate: string | null; title: string; url: string };
+type Source = { metric: string; metricCode: string; referenceDate: string | null; title: string; url: string };
 
-function formatMetric(metric?: Metric) {
-  if (!metric || metric.value === null) return metric?.unavailableReason ?? "Nicht importiert";
+function numberFormat(language: string) {
+  return new Intl.NumberFormat(`${language}-CH`, { maximumFractionDigits: 2 });
+}
+
+function formatMetric(metric: Metric | undefined, language: string, unavailable: string) {
+  if (!metric || metric.value === null) return unavailable;
   const suffix = metric.unit === "percent" ? " %" : metric.unit === "per_1000" ? " pro 1'000" : metric.unit === "per_100000" ? " pro 100'000" : "";
-  return `${number.format(metric.value)}${suffix}`;
+  return `${numberFormat(language).format(metric.value)}${suffix}`;
 }
 
-function formatScore(metric?: Metric) {
-  if (!metric || metric.value === null) return formatMetric(metric);
-  return `${metric.value >= 0 ? "+" : ""}${number.format(metric.value)}`;
+function formatScore(metric: Metric | undefined, language: string, unavailable: string) {
+  if (!metric || metric.value === null) return unavailable;
+  return `${metric.value >= 0 ? "+" : ""}${numberFormat(language).format(metric.value)}`;
 }
 
-function formatPoliticalTendency(metric?: Metric) {
-  if (!metric || metric.value === null) return formatScore(metric);
+function formatPoliticalTendency(metric: Metric | undefined, language: string, unavailable: string, labels: { balanced: string; lightLeft: string; left: string; lightRight: string; right: string }) {
+  if (!metric || metric.value === null) return formatScore(metric, language, unavailable);
   const magnitude = Math.abs(metric.value);
   const tendency = magnitude <= balancedPoliticalScoreThreshold
-    ? "ausgeglichen"
-    : `${magnitude < strongPoliticalScoreThreshold ? "leicht " : ""}${metric.value > 0 ? "rechts" : "links"}`;
-  return `${formatScore(metric)} (${tendency})`;
+    ? labels.balanced
+    : metric.value > 0 ? magnitude < strongPoliticalScoreThreshold ? labels.lightRight : labels.right : magnitude < strongPoliticalScoreThreshold ? labels.lightLeft : labels.left;
+  return `${formatScore(metric, language, unavailable)} (${tendency})`;
 }
 
-function formatCulturalScore(metric?: Metric) {
-  if (!metric || metric.value === null) return formatMetric(metric);
-  return `${number.format(metric.value)} / 100`;
+function formatCulturalScore(metric: Metric | undefined, language: string, unavailable: string) {
+  if (!metric || metric.value === null) return unavailable;
+  return `${numberFormat(language).format(metric.value)} / 100`;
 }
 
-export function CatalogExplorer() {
+function CatalogExplorerContent() {
+  const { language, setLanguage, t } = useTranslation();
+  const categories = [
+    { code: "population_total", label: t("population"), shortLabel: t("population") }, { code: "crime_per_100000", label: t("crime"), shortLabel: t("crime") }, { code: "asylum_pending_per_1000", label: t("asylum"), shortLabel: t("asylum") }, { code: "population_foreign_percent", label: t("foreignPopulation"), shortLabel: t("foreignPopulation") }, { code: "fertility_tfr", label: t("fertility"), shortLabel: t("fertility") }, { code: "unemployment_rate", label: t("unemployment"), shortLabel: t("unemployment") }, { code: "political_orientation_score", label: t("politicalTendency"), shortLabel: t("politicalTendency") }, { code: "cultural_enrichment_score", label: t("culturalScore"), shortLabel: "CES" },
+  ] as const;
   const [mapMetric, setMapMetric] = useState<CategoryCode>("population_total");
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const [pinnedCode, setPinnedCode] = useState<string | null>(null);
@@ -83,7 +80,7 @@ export function CatalogExplorer() {
 
     fetch(`/api/catalog/map?${parameters}`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? "Der lokale Datenkatalog konnte nicht geladen werden.");
+        if (!response.ok) throw new Error(t("mapCatalogFailed"));
         return response.json() as Promise<MapResponse>;
       })
       .then((mapResponse) => {
@@ -91,11 +88,11 @@ export function CatalogExplorer() {
         setMapError(undefined);
       })
       .catch((requestError: unknown) => {
-        if ((requestError as { name?: string }).name !== "AbortError") setMapError(requestError instanceof Error ? requestError.message : "Die Kartenwerte konnten nicht geladen werden.");
+        if ((requestError as { name?: string }).name !== "AbortError") setMapError(requestError instanceof Error ? requestError.message : t("mapValuesFailed"));
       });
 
     return () => controller.abort();
-  }, [mapMetric]);
+  }, [mapMetric, t]);
 
   useEffect(() => {
     if (!activeCode) return;
@@ -111,7 +108,7 @@ export function CatalogExplorer() {
     setCard(undefined);
     fetch(`/api/catalog/card?${new URLSearchParams({ canton: activeCode })}`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? "Die Kantonsdaten konnten nicht geladen werden.");
+        if (!response.ok) throw new Error(t("cantonDataFailed"));
         return response.json() as Promise<CantonCardResponse>;
       })
       .then((cardResponse) => {
@@ -120,11 +117,11 @@ export function CatalogExplorer() {
         setCardError(undefined);
       })
       .catch((requestError: unknown) => {
-        if ((requestError as { name?: string }).name !== "AbortError") setCardError(requestError instanceof Error ? requestError.message : "Die Kantonsdaten konnten nicht geladen werden.");
+        if ((requestError as { name?: string }).name !== "AbortError") setCardError(requestError instanceof Error ? requestError.message : t("cantonDataFailed"));
       });
 
     return () => controller.abort();
-  }, [activeCode]);
+  }, [activeCode, t]);
 
   useEffect(() => {
     if (!isSourcesOpen || sources) return;
@@ -132,25 +129,25 @@ export function CatalogExplorer() {
     const controller = new AbortController();
     fetch("/api/catalog?canton=ZH", { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json() as { error?: string }).error ?? "Die Quellen konnten nicht geladen werden.");
+        if (!response.ok) throw new Error(t("sourcesFailed"));
         return response.json() as Promise<CatalogResponse>;
       })
       .then((catalog) => {
         const uniqueSources = new Map<string, Source>();
         for (const metric of catalog.metrics) {
           if (!metric.source) continue;
-          const source = { metric: metric.name, referenceDate: metric.referenceDate, title: metric.source.title, url: metric.source.url };
+          const source = { metric: metric.name, metricCode: metric.code, referenceDate: metric.referenceDate, title: metric.source.title, url: metric.source.url };
           uniqueSources.set(`${source.metric}:${source.title}:${source.url}`, source);
         }
         setSources([...uniqueSources.values()].sort((left, right) => left.metric.localeCompare(right.metric, "de")));
         setSourcesError(undefined);
       })
       .catch((requestError: unknown) => {
-        if ((requestError as { name?: string }).name !== "AbortError") setSourcesError(requestError instanceof Error ? requestError.message : "Die Quellen konnten nicht geladen werden.");
+        if ((requestError as { name?: string }).name !== "AbortError") setSourcesError(requestError instanceof Error ? requestError.message : t("sourcesFailed"));
       });
 
     return () => controller.abort();
-  }, [isSourcesOpen, sources]);
+  }, [isSourcesOpen, sources, t]);
 
   useEffect(() => {
     function dismissPinnedCard(event: KeyboardEvent) {
@@ -180,6 +177,8 @@ export function CatalogExplorer() {
   const activeCategory = categories.find((category) => category.code === mapMetric) ?? categories[0];
   const activeMetric = metrics.get(mapMetric);
   const isCardVisible = activeCode !== null;
+  const selectedCantonName = activeCode ? getCanton(activeCode)?.name[language] : undefined;
+  const tendencyLabels = { balanced: t("tendencyBalanced"), lightLeft: t("tendencyLightLeft"), left: t("tendencyLeft"), lightRight: t("tendencyLightRight"), right: t("tendencyRight") };
 
   function clearHoverTimer() {
     if (hoverTimer.current) {
@@ -239,11 +238,11 @@ export function CatalogExplorer() {
   if (municipalityCanton) {
     return <div className="map-page municipality-map-page">
       <header className="site-header">
-        <div className="site-header__identity"><span className="site-brand">Cultural Enrichment Radar</span></div>
-        <div className="site-header__actions"><button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(null)}><MapIcon size={15} />Kantonskarte</button></div>
+        <div className="site-header__identity"><span className="site-brand">{t("siteName")}</span></div>
+        <div className="site-header__actions"><button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(null)}><MapIcon size={15} />{t("backToCantonMap")}</button><LanguageSwitcher language={language} setLanguage={setLanguage} t={t} /></div>
       </header>
       <MunicipalityVoteExplorer cantonCode={municipalityCanton} key={municipalityCanton} onBack={() => setMunicipalityCanton(null)} />
-      <footer className="site-footer"><span>BFS · Gemeinde-Abstimmungsresultate</span><span>2026</span></footer>
+      <footer className="site-footer"><span>BFS · {t("municipalVoteResults")}</span><span>2026</span></footer>
     </div>;
   }
 
@@ -251,51 +250,59 @@ export function CatalogExplorer() {
     <div className="map-page">
       <header className="site-header">
         <div className="site-header__identity">
-          <span className="site-brand">Cultural Enrichment Radar</span>
-          <label className="global-category global-category--desktop"><span>Karte</span><select aria-label="Kartenkategorie" value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.label}</option>)}</select><ChevronDown size={14} /></label>
-          <label className="global-category global-category--mobile"><MapIcon className="global-category__icon" size={15} /><select aria-label="Kartenkategorie" value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.shortLabel}</option>)}</select><ChevronDown size={14} /></label>
+          <span className="site-brand">{t("siteName")}</span>
+          <label className="global-category global-category--desktop"><span>{t("map")}</span><select aria-label={t("map")} value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.label}</option>)}</select><ChevronDown size={14} /></label>
+          <label className="global-category global-category--mobile"><MapIcon className="global-category__icon" size={15} /><select aria-label={t("map")} value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.shortLabel}</option>)}</select><ChevronDown size={14} /></label>
         </div>
         <div className="site-header__actions">
-          <button className="methodology-trigger" type="button" onClick={() => setIsSourcesOpen(true)}><BookOpen size={15} />Quellen</button>
-          <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />Was ist Cultural Enrichment Score?</button>
+          <button className="methodology-trigger" type="button" onClick={() => setIsSourcesOpen(true)}><BookOpen size={15} />{t("sources")}</button>
+          <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />{t("cesMethodology")}</button><LanguageSwitcher language={language} setLanguage={setLanguage} t={t} />
         </div>
       </header>
-      <main className="map-explorer" aria-label="Interaktive Karte der Schweizer Kantone">
+      <main className="map-explorer" aria-label={t("cantonMapAria")}>
         <div className="map-hero">
-          <p className="map-nudge">Klick auf einen Kanton – los geht&apos;s! <ArrowDown aria-hidden="true" size={16} strokeWidth={2.4} /></p>
-          <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={activeCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
+          <p className="map-nudge">{t("nudge")} <ArrowDown aria-hidden="true" size={16} strokeWidth={2.4} /></p>
+          <div className="map-canvas map-canvas--full"><SwissCantonMap language={language} onHover={hoverCanton} onLeave={leaveCanton} selectedCode={activeCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
         </div>
         {mapError && <span className="map-availability">{mapError}</span>}
-        {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
+        {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">{t("mapNoValues")}</span>}
 
-        {isCardVisible && <aside ref={cardRef} className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label="Kantonsdaten" style={cardStyle} onPointerEnter={clearHoverTimer} onPointerLeave={leaveCanton}>
+        {isCardVisible && <aside ref={cardRef} className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label={t("cantonAction")} style={cardStyle} onPointerEnter={clearHoverTimer} onPointerLeave={leaveCanton}>
           <div className="hover-card__header">
             <div className="hover-card__identity">
-              <h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1>
-              {pinnedCode && <div className="hover-card__quick-actions"><button type="button" onClick={openMunicipalityVotes}>Gemeinde-Ebene</button><button type="button" onClick={() => setCompassMode("cantons")}>Politischer Kompass</button></div>}
+              <h1>{selectedCantonName ?? card?.selectedGeo.name ?? t("loading")}</h1>
+              {pinnedCode && <div className="hover-card__quick-actions"><button type="button" onClick={openMunicipalityVotes}>{t("municipalityLevel")}</button><button type="button" onClick={() => setCompassMode("cantons")}>{t("politicalCompass")}</button></div>}
             </div>
-            {pinnedCode && <button type="button" aria-label="Fixierte Kantonsdaten schliessen" onClick={closeCantonCard}><X size={16} /></button>}
+            {pinnedCode && <button type="button" aria-label={t("closeCanton")} onClick={closeCantonCard}><X size={16} /></button>}
           </div>
           {cardError && <p className="hover-card__error">{cardError}</p>}
           {!cardError && <>
-            {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric) : formatMetric(activeMetric)}</strong></div>}
-            <div className="hover-card__ces"><span>Cultural Enrichment Score</span><strong>{formatCulturalScore(culturalScore)}</strong></div>
+            {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric, language, t("unavailable"), tendencyLabels) : formatMetric(activeMetric, language, t("unavailable"))}</strong></div>}
+            <div className="hover-card__ces"><span>{t("culturalScore")}</span><strong>{formatCulturalScore(culturalScore, language, t("unavailable"))}</strong></div>
             <dl className="hover-card__facts">
-              <div><dt>Einwohnerzahl</dt><dd>{formatMetric(metrics.get("population_total"))}</dd></div>
-              <div><dt>Kriminalität (PKS)</dt><dd>{formatMetric(metrics.get("crime_per_100000"))}</dd></div>
-              <div><dt>Offene Asylverfahren</dt><dd>{formatMetric(metrics.get("asylum_pending_per_1000"))}</dd></div>
-              <div><dt>Ausländische Bevölkerung</dt><dd>{formatMetric(metrics.get("population_foreign_percent"))}</dd></div>
-              <div><dt>Fertilitätsrate</dt><dd>{formatMetric(metrics.get("fertility_tfr"))}</dd></div>
-              <div><dt>Erwerbslosenquote (BFS)</dt><dd>{formatMetric(metrics.get("unemployment_rate"))}</dd></div>
-              <div><dt>Politische Tendenz {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{formatPoliticalTendency(metrics.get("political_orientation_score"))}</dd></div>
+              <div><dt>{t("population")}</dt><dd>{formatMetric(metrics.get("population_total"), language, t("unavailable"))}</dd></div>
+              <div><dt>{t("crime")}</dt><dd>{formatMetric(metrics.get("crime_per_100000"), language, t("unavailable"))}</dd></div>
+              <div><dt>{t("asylum")}</dt><dd>{formatMetric(metrics.get("asylum_pending_per_1000"), language, t("unavailable"))}</dd></div>
+              <div><dt>{t("foreignPopulation")}</dt><dd>{formatMetric(metrics.get("population_foreign_percent"), language, t("unavailable"))}</dd></div>
+              <div><dt>{t("fertility")}</dt><dd>{formatMetric(metrics.get("fertility_tfr"), language, t("unavailable"))}</dd></div>
+              <div><dt>{t("unemployment")}</dt><dd>{formatMetric(metrics.get("unemployment_rate"), language, t("unavailable"))}</dd></div>
+              <div><dt>{t("politicalTendency")} {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{formatPoliticalTendency(metrics.get("political_orientation_score"), language, t("unavailable"), tendencyLabels)}</dd></div>
             </dl>
           </>}
         </aside>}
       </main>
-      <footer className="site-footer"><span>BFS · SEM · Lokaler Datenkatalog</span><span>2026</span></footer>
-      {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>DATENGRUNDLAGEN</span><h2 id="sources-title">Quellen</h2></div><button type="button" aria-label="Quellen schliessen" onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">Quellen werden geladen …</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{source.metric}</strong><span>{source.title}{source.referenceDate ? ` · Stand ${source.referenceDate}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">Originalquelle öffnen</a> : <span className="sources-list__local">Lokale Berechnung aus den genannten Datenquellen</span>}</li>)}</ul>}</section></div>}
-      {isMethodologyOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsMethodologyOpen(false)}><section className="methodology-dialog" role="dialog" aria-modal="true" aria-labelledby="methodology-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>BERECHNUNG</span><h2 id="methodology-title">Cultural Enrichment Score</h2></div><button type="button" aria-label="Berechnung schliessen" onClick={() => setIsMethodologyOpen(false)}><X size={18} /></button></div><p>Nicht amtlicher Kompositindex. Alle vier Faktoren werden über die aktuell verfügbaren Kantone auf 0 bis 100 normiert und zählen gleich stark.</p><p className="methodology-formula">CES = 0.25 × (Kriminalität + offene Asylverfahren + ausländische Bevölkerung + Erwerbslosenquote)</p><ul><li>Kriminalität pro 100&apos;000: 2025</li><li>Offene Asylverfahren pro 1&apos;000: 30.06.2026</li><li>Ausländische Bevölkerung: 2024</li><li>BFS-Erwerbslosenquote: 2024</li></ul><p>Für Appenzell Innerrhoden ist kein Score verfügbar, da keine Erwerbslosenquote veröffentlicht wurde.</p></section></div>}
+      <footer className="site-footer"><span>{t("mainFooter")}</span><span>2026</span></footer>
+      {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("sourcesKicker")}</span><h2 id="sources-title">{t("sourcesTitle")}</h2></div><button type="button" aria-label={t("closeSources")} onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">{t("sourcesLoading")}</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{categories.find((category) => category.code === source.metricCode)?.label ?? source.metric}</strong><span>{source.title}{source.referenceDate ? ` · ${t("asOf", { date: source.referenceDate })}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{t("openSource")}</a> : <span className="sources-list__local">{t("localCalculation")}</span>}</li>)}</ul>}</section></div>}
+      {isMethodologyOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsMethodologyOpen(false)}><section className="methodology-dialog" role="dialog" aria-modal="true" aria-labelledby="methodology-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("methodology")}</span><h2 id="methodology-title">{t("cesTitle")}</h2></div><button type="button" aria-label={t("closeMethodology")} onClick={() => setIsMethodologyOpen(false)}><X size={18} /></button></div><p>{t("cesText")}</p><p className="methodology-formula">{t("cesFormula")}</p><ul><li>{t("cesCrime")}</li><li>{t("cesAsylum")}</li><li>{t("cesForeign")}</li><li>{t("cesUnemployment")}</li></ul><p>{t("cesMissing")}</p></section></div>}
       {compassMode && <PoliticalCompassModal mode={compassMode} onClose={() => setCompassMode(null)} />}
     </div>
   );
+}
+
+function LanguageSwitcher({ language, setLanguage, t }: { language: ReturnType<typeof useTranslation>["language"]; setLanguage: ReturnType<typeof useTranslation>["setLanguage"]; t: ReturnType<typeof useTranslation>["t"] }) {
+  return <label className="language-switcher"><Languages aria-hidden="true" size={15} /><span className="sr-only">{t("language")}</span><select aria-label={t("language")} value={language} onChange={(event) => setLanguage(event.target.value as typeof language)}>{locales.map((locale) => <option key={locale} value={locale}>{locale.toUpperCase()}</option>)}</select><ChevronDown size={13} /></label>;
+}
+
+export function CatalogExplorer() {
+  return <LanguageProvider><CatalogExplorerContent /></LanguageProvider>;
 }

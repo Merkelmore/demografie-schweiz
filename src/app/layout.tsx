@@ -13,8 +13,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Cultural Enrichment Radar",
-  description: "Interaktive Schweizer Kantonskennzahlen erkunden.",
+  title: "Politik Kompass Schweiz",
+  description: "Interaktive politische und demografische Kennzahlen der Schweizer Kantone und Gemeinden.",
 };
 
 export default function RootLayout({

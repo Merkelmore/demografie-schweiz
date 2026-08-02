@@ -1,6 +1,7 @@
 "use client";
 
 import { toChartPoint, type CompassSpread } from "@/lib/political-compass";
+import { useTranslation } from "@/lib/i18n";
 
 const miniature = { center: 50, extent: 42, size: 100 };
 
@@ -8,12 +9,13 @@ const miniature = { center: 50, extent: 42, size: 100 };
  * The compact compass marks the selected municipality in its hover panel.
  */
 export function CompassMiniature({ point, spread, title }: { point?: { x: number; y: number }; spread: CompassSpread; title: string }) {
+  const { t } = useTranslation();
   const marker = point && toChartPoint(point, spread, miniature);
 
   return (
     <figure className="compass-miniature">
-      <span className="compass-miniature__axis compass-miniature__axis--top">Autoritär</span>
-      <span className="compass-miniature__axis compass-miniature__axis--left">Links</span>
+      <span className="compass-miniature__axis compass-miniature__axis--top">{t("authoritarian")}</span>
+      <span className="compass-miniature__axis compass-miniature__axis--left">{t("left")}</span>
       <svg viewBox={`0 0 ${miniature.size} ${miniature.size}`} role="img" aria-label={title}>
         <rect className="compass-quadrant compass-quadrant--authoritarian-left" x="0" y="0" width="50" height="50" />
         <rect className="compass-quadrant compass-quadrant--authoritarian-right" x="50" y="0" width="50" height="50" />
@@ -26,8 +28,8 @@ export function CompassMiniature({ point, spread, title }: { point?: { x: number
           <circle className="compass-miniature__point" cx={marker.x} cy={marker.y} r="4.2" />
         </>}
       </svg>
-      <span className="compass-miniature__axis compass-miniature__axis--right">Rechts</span>
-      <span className="compass-miniature__axis compass-miniature__axis--bottom">Libertär</span>
+      <span className="compass-miniature__axis compass-miniature__axis--right">{t("right")}</span>
+      <span className="compass-miniature__axis compass-miniature__axis--bottom">{t("libertarian")}</span>
     </figure>
   );
 }

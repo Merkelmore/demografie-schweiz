@@ -4,6 +4,7 @@ import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 
 import { getCanton, type Language } from "@/lib/cantons";
+import { useTranslation } from "@/lib/i18n";
 
 type Position = [number, number];
 
@@ -97,6 +98,7 @@ type SwissCantonMapProps = {
 };
 
 export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedCode, valueDomain, values }: SwissCantonMapProps) {
+  const { t } = useTranslation();
   const [features, setFeatures] = useState<CantonFeature[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -139,11 +141,11 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
   }), [features]);
 
   if (loadError) {
-    return <p className="map-status" role="alert">Die Kantonskarte konnte nicht geladen werden.</p>;
+    return <p className="map-status" role="alert">{t("mapFailed")}</p>;
   }
 
   if (features.length === 0) {
-    return <p className="map-status" aria-live="polite">Kantonskarte wird geladen …</p>;
+    return <p className="map-status" aria-live="polite">{t("mapLoading")}</p>;
   }
 
   function touchDistance(touches: TouchEvent<HTMLDivElement>["touches"]) {
@@ -239,11 +241,11 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
 
   return (
     <div className={`map-zoom-viewport ${isPanning ? "map-zoom-viewport--panning" : ""}`} onTouchEnd={endTouch} onTouchMove={moveTouch} onTouchStart={startTouch}>
-      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label="Interaktive Karte der Schweizer Kantone" style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapZoom})` }}>
+      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label={t("cantonMapAria")} style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapZoom})` }}>
         {regions.map(({ canton, index, path }) => {
         const cantonCode = canton.code;
         const isSelected = cantonCode === selectedCode;
-        const label = language === "de" ? `${canton.name.de}: Kantonsdaten anzeigen` : `Show canton data for ${canton.name.en}`;
+        const label = `${canton.name[language]}: ${t("cantonAction")}`;
         const value = values?.[cantonCode];
         const normalizedValue = hasValues && value !== undefined ? maximumValue > minimumValue ? Math.max(0, Math.min(1, (value - minimumValue) / (maximumValue - minimumValue))) : 0.5 : null;
         const lightness = normalizedValue === null ? 88 : 91 - normalizedValue * (valueDomain ? 43 : 35);
@@ -280,7 +282,7 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
         );
         })}
       </svg>
-      {mapZoom > 1 && <button className="map-zoom-reset" type="button" aria-label="Kartenansicht zurücksetzen" title="Kartenansicht zurücksetzen" onClick={resetZoom}><RotateCcw size={16} /></button>}
+      {mapZoom > 1 && <button className="map-zoom-reset" type="button" aria-label={t("mapReset")} title={t("mapReset")} onClick={resetZoom}><RotateCcw size={16} /></button>}
     </div>
   );
 }
