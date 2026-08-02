@@ -25,6 +25,8 @@ const categories = [
 const cardCacheTtl = 5 * 60 * 1000;
 const cardWidth = 340;
 const hoverDelay = 110;
+const balancedPoliticalScoreThreshold = 0.025;
+const strongPoliticalScoreThreshold = 0.1;
 
 type Metric = CantonCardResponse["metrics"][number];
 type CategoryCode = (typeof categories)[number]["code"];
@@ -43,7 +45,12 @@ function formatScore(metric?: Metric) {
 }
 
 function formatPoliticalTendency(metric?: Metric) {
-  return formatScore(metric);
+  if (!metric || metric.value === null) return formatScore(metric);
+  const magnitude = Math.abs(metric.value);
+  const tendency = magnitude <= balancedPoliticalScoreThreshold
+    ? "ausgeglichen"
+    : `${magnitude < strongPoliticalScoreThreshold ? "leicht " : ""}${metric.value > 0 ? "rechts" : "links"}`;
+  return `${formatScore(metric)} (${tendency})`;
 }
 
 function formatCulturalScore(metric?: Metric) {
