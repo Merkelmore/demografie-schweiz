@@ -115,18 +115,25 @@
   max-height: none;
 }
 
+.map-hero {
+  display: grid;
+  width: 100%;
+  place-items: center;
+}
+
 .map-nudge {
-  position: absolute;
-  bottom: 14px;
-  margin: 0;
-  border: 1px solid #d8e0e5;
-  border-radius: 2px;
-  background: rgb(255 255 255 / .9);
-  color: #65727d;
-  padding: 6px 10px;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 5px;
+  color: #8b2028;
+  font-family: var(--font-fraunces), serif;
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 600;
   line-height: 1.2;
   pointer-events: none;
+  transform: rotate(-1deg);
 }
 
 .hover-card {
@@ -728,8 +735,8 @@
   }
 
   .map-nudge {
-    bottom: 8px;
     max-width: calc(100% - 16px);
+    font-size: 13px;
     text-align: center;
   }
 
