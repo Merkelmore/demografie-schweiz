@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 
 export const locales = ["de", "en", "fr", "it", "rm"] as const;
 export type Locale = (typeof locales)[number];
@@ -74,15 +74,86 @@ function interpolate(message: string, values: Record<string, string | number> = 
   return message.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));
 }
 
+const storageKey = "politik-kompass-language";
+const defaultLocale: Locale = "de";
+
+function isLocale(value: string): value is Locale {
+  return (locales as readonly string[]).includes(value);
+}
+
+// Browsers expose the visitor's ranked language preferences from their operating
+// system, which is what Accept-Language negotiation uses too. Only the primary
+// subtag matters here: "de-CH", "de-AT" and "de" all mean German. Swiss German is
+// tagged "gsw" and has no locale of its own on this site, so it reads as German.
+function matchLocale(tags: readonly string[]) {
+  for (const tag of tags) {
+    const primary = tag.toLowerCase().split("-")[0];
+    if (primary === "gsw") return "de" as Locale;
+    if (isLocale(primary)) return primary;
+  }
+  return undefined;
+}
+
+// localStorage throws instead of returning null when storage is blocked, which
+// would take the whole provider down on mount.
+function readStoredLocale() {
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    return stored && isLocale(stored) ? stored : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function storeLocale(language: Locale) {
+  try {
+    window.localStorage.setItem(storageKey, language);
+  } catch {
+    // A visitor with storage blocked simply gets detection again next visit.
+  }
+}
+
+function preferredLocale() {
+  const navigatorTags = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return readStoredLocale() ?? matchLocale(navigatorTags) ?? defaultLocale;
+}
+
+// The page is statically prerendered in the default locale, so the detected one can
+// only be read on the client. A module-level store lets useSyncExternalStore serve
+// the server snapshot during hydration and swap in the real locale straight after,
+// which is the mismatch-free way to do this — reading navigator during render would
+// desync hydration, and detecting in an effect is a setState-in-effect.
+let selectedLocale: Locale | undefined;
+const localeListeners = new Set<() => void>();
+
+function localeSnapshot() {
+  selectedLocale ??= preferredLocale();
+  return selectedLocale;
+}
+
+function subscribeToLocale(onChange: () => void) {
+  localeListeners.add(onChange);
+  return () => {
+    localeListeners.delete(onChange);
+  };
+}
+
+// Only a deliberate pick is remembered. A merely detected locale stays fluid, so the
+// site keeps following the browser if its language preferences later change.
+function selectLocale(language: Locale) {
+  storeLocale(language);
+  selectedLocale = language;
+  for (const notify of localeListeners) notify();
+}
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Locale>("de");
+  const language = useSyncExternalStore(subscribeToLocale, localeSnapshot, () => defaultLocale);
 
   useEffect(() => {
     document.documentElement.lang = language;
-    window.localStorage.setItem("politik-kompass-language", language);
   }, [language]);
 
-  const value = useMemo(() => ({ language, setLanguage, t: (key: TranslationKey, values?: Record<string, string | number>) => interpolate(messages[language][key], values) }), [language]);
+  const value = useMemo(() => ({ language, setLanguage: selectLocale, t: (key: TranslationKey, values?: Record<string, string | number>) => interpolate(messages[language][key], values) }), [language]);
   return <TranslationContext.Provider value={value}>{children}</TranslationContext.Provider>;
 }
 
