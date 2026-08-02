@@ -8,7 +8,7 @@ import { MunicipalityVoteExplorer } from "@/components/municipality-vote-explore
 import { PoliticalCompassModal } from "@/components/political-compass-modal";
 import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
 import { getCanton } from "@/lib/cantons";
-import { LanguageProvider, locales, useTranslation } from "@/lib/i18n";
+import { formattingLocale, LanguageProvider, locales, useTranslation } from "@/lib/i18n";
 import { useHoverCardPlacement } from "@/lib/use-hover-card";
 
 const cardCacheTtl = 5 * 60 * 1000;
@@ -23,7 +23,7 @@ type CachedCard = { expiresAt: number; value: CantonCardResponse };
 type Source = { metric: string; metricCode: string; referenceDate: string | null; title: string; url: string };
 
 function numberFormat(language: string) {
-  return new Intl.NumberFormat(`${language}-CH`, { maximumFractionDigits: 2 });
+  return new Intl.NumberFormat(formattingLocale(language), { maximumFractionDigits: 2 });
 }
 
 function formatMetric(metric: Metric | undefined, language: string, unavailable: string) {

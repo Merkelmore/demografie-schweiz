@@ -8,7 +8,7 @@ import { getCanton } from "@/lib/cantons";
 import { CompassMiniature } from "@/components/compass-miniature";
 import { PoliticalCompassModal } from "@/components/political-compass-modal";
 import { compassSpread, quadrantFill, usePoliticalCompass } from "@/lib/political-compass";
-import { useTranslation } from "@/lib/i18n";
+import { formattingLocale, useTranslation } from "@/lib/i18n";
 import { useHoverCardPlacement } from "@/lib/use-hover-card";
 
 type Position = [number, number];
@@ -64,11 +64,11 @@ function eligibleVoters(proposals: Proposal[], municipalityId: number) {
 }
 
 function formatPercent(value: number | undefined, language: string, unavailable: string) {
-  return typeof value === "number" && Number.isFinite(value) ? `${new Intl.NumberFormat(`${language}-CH`, { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value)} %` : unavailable;
+  return typeof value === "number" && Number.isFinite(value) ? `${new Intl.NumberFormat(formattingLocale(language), { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value)} %` : unavailable;
 }
 
 function formatNumber(value: number | undefined, language: string, unavailable: string) {
-  return typeof value === "number" && Number.isFinite(value) ? new Intl.NumberFormat(`${language}-CH`).format(value) : unavailable;
+  return typeof value === "number" && Number.isFinite(value) ? new Intl.NumberFormat(formattingLocale(language)).format(value) : unavailable;
 }
 
 export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: string; onBack: () => void }) {
