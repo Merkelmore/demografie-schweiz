@@ -183,10 +183,6 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: s
               return <path key={municipality.properties.vogeId} aria-label={municipality.properties.vogeName} className={`municipality-region ${isSelected ? "selected" : ""}`} d={pathFor(municipality, extent)} fill={point ? quadrantFill(point, spread) : uncoloredMunicipality} role="button" tabIndex={0} onClick={(event) => pinMunicipality(municipality.properties.vogeId, { x: event.clientX, y: event.clientY })} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pinMunicipality(municipality.properties.vogeId); } }} onPointerEnter={(event) => { if (event.pointerType === "mouse") hoverMunicipality(municipality.properties.vogeId, { x: event.clientX, y: event.clientY }); }} onPointerLeave={(event) => { if (event.pointerType === "mouse") leaveMunicipality(); }} />;
             })}
           </svg>
-          <div className="municipality-legend">
-            <CompassMiniature spread={spread} title="Farbschlüssel des politischen Kompasses" />
-            <p>Die Farbe zeigt, wo eine Gemeinde im politischen Kompass steht. Je kräftiger der Ton, desto weiter aussen liegt sie.</p>
-          </div>
         </div>
         {selected && <aside ref={cardRef} className={`hover-card hover-card--municipality ${pinnedMunicipality !== null ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label={`Abstimmungsresultate für ${selected.properties.vogeName}`} style={cardStyle}>
           <div className="hover-card__header"><h2>{selected.properties.vogeName}</h2>{pinnedMunicipality !== null && <button type="button" aria-label="Fixierte Gemeindedaten schliessen" onClick={() => { setPinnedMunicipality(null); setHoveredMunicipality(null); }}><X size={16} /></button>}</div>

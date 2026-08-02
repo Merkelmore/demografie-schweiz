@@ -3,7 +3,7 @@
 .compass-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 18px; border-bottom: 1px solid #e3e8eb; }
 .compass-dialog__header h2 { margin: 0; font-size: 20px; line-height: 1.15; }
 .compass-dialog__actions { display: flex; align-items: center; gap: 8px; }
-.compass-dialog__actions button, .compass-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; border: 1px solid #cfd8df; border-radius: 2px; background: #fff; color: #172a3a; font-size: 11px; font-weight: 700; }
+.compass-dialog__actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; border: 1px solid #cfd8df; border-radius: 2px; background: #fff; color: #172a3a; font-size: 11px; font-weight: 700; }
 .compass-dialog__actions > button:last-child { width: 30px; }
 .compass-info-button { padding: 0 9px; color: #65161d !important; }
 
@@ -39,8 +39,10 @@
 .compass-plot__axis--bottom { grid-area: 3 / 2; }
 .compass-plot__axis--left { grid-area: 2 / 1; writing-mode: vertical-rl; transform: rotate(180deg); }
 .compass-plot__axis--right { grid-area: 2 / 3; writing-mode: vertical-rl; }
-.compass-chart { display: block; grid-area: 2 / 2; width: auto; max-width: 100%; height: min(calc(100dvh - 300px), 660px); aspect-ratio: 1; overflow: hidden; touch-action: none; user-select: none; }
+.compass-chart { display: block; grid-area: 2 / 2; width: auto; max-width: 100%; height: min(calc(100dvh - 370px), 560px); aspect-ratio: 1; overflow: hidden; touch-action: none; user-select: none; }
 .compass-chart:active { cursor: grabbing; }
+.compass-reset { display: grid; grid-area: 2 / 2; align-self: start; justify-self: end; z-index: 1; width: 30px; height: 30px; margin: 8px; place-items: center; border: 1px solid #cfd8df; border-radius: 2px; background: rgb(255 255 255 / .94); color: #65161d; box-shadow: 0 1px 4px rgb(23 42 58 / .14); }
+.compass-reset:hover, .compass-reset:focus-visible { border-color: #65161d; background: #65161d; color: #fff; outline: none; }
 
 .compass-quadrant { stroke: #ffffff; stroke-width: 1; }
 .compass-quadrant--authoritarian-left { fill: hsl(356 55% 93%); }
@@ -59,10 +61,6 @@
 .compass-label--origin text { fill: #8b2028; }
 .compass-label--origin .compass-label__ring { stroke: #8b2028; stroke-dasharray: 3 3; }
 
-.compass-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 0; }
-.compass-controls button { padding: 0 9px; }
-.compass-controls p { flex: 1; min-width: 0; min-height: 16px; margin: 0; color: #65727d; font-size: 11px; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.compass-controls strong { color: #172a3a; }
 .compass-dialog__footer { padding: 10px 18px; border-top: 1px solid #e3e8eb; color: #65727d; font-size: 10px; line-height: 1.4; }
 
 /* The compass reduced to a colour key, reused as the municipality map legend and inside the municipality panel. */
@@ -87,8 +85,6 @@
   .compass-filter__list { max-height: 76px; overflow-y: auto; }
   .compass-workspace { padding: 10px; }
   .compass-method { padding: 12px; }
-  .compass-controls { align-items: start; }
-  .compass-controls p { font-size: 10px; }
-  .compass-chart { height: min(calc(100dvh - 320px), 52dvh); }
+  .compass-chart { height: min(calc(100dvh - 300px), 52dvh); }
   .compass-plot__axis { font-size: 10px; }
 }

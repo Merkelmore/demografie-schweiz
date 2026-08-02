@@ -110,7 +110,7 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: {
         {!error && !data && <p className="compass-status" aria-live="polite">Kompassdaten werden geladen …</p>}
         {data && <>
           <div className="compass-plot">
-          <span className="compass-plot__axis compass-plot__axis--top">Autorität</span>
+          <span className="compass-plot__axis compass-plot__axis--top">Autoritär</span>
           <span className="compass-plot__axis compass-plot__axis--left">Links</span>
           <svg className="compass-chart" viewBox={`0 0 ${compassChart.size} ${compassChart.size}`} role="img" aria-label={`${title} mit ${visiblePoints.length} Punkten`} onWheel={(event) => { event.preventDefault(); const nextZoom = Math.max(1, Math.min(8, zoom * (event.deltaY < 0 ? 1.18 : 0.85))); setZoom(nextZoom); setPan(clampPan(pan, nextZoom)); }} onPointerDown={(event) => { drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: pan.x, originY: pan.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { if (!drag.current || drag.current.pointerId !== event.pointerId) return; const bounds = event.currentTarget.getBoundingClientRect(); const factor = compassChart.size / bounds.width; setPan(clampPan({ x: drag.current.originX + (event.clientX - drag.current.x) * factor, y: drag.current.originY + (event.clientY - drag.current.y) * factor })); }} onPointerUp={(event) => { if (drag.current?.pointerId === event.pointerId) drag.current = undefined; }}>
             <g transform={`translate(${pan.x} ${pan.y}) translate(${compassChart.center} ${compassChart.center}) scale(${zoom}) translate(${-compassChart.center} ${-compassChart.center})`}>
@@ -125,10 +125,10 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: {
               {hovered && <CompassLabel position={toChartPoint(hovered, spread)} text={hovered.cantonName ? `${hovered.name} · ${hovered.cantonName}` : hovered.name} tone="hovered" zoom={zoom} />}
             </g>
           </svg>
+          <button className="compass-reset" type="button" aria-label="Kompassansicht zurücksetzen" title="Ansicht zurücksetzen" onClick={resetView}><RotateCcw size={15} /></button>
           <span className="compass-plot__axis compass-plot__axis--right">Rechts</span>
           <span className="compass-plot__axis compass-plot__axis--bottom">Libertär</span>
           </div>
-          <div className="compass-controls"><button type="button" onClick={resetView}><RotateCcw size={15} />Ansicht zurücksetzen</button><p>{hovered ? <strong>{hovered.cantonName ? `${hovered.name} · ${hovered.cantonName}` : hovered.name}</strong> : "Über einen Punkt fahren für den Namen."}</p></div>
         </>}
       </div>
       {data && <footer className="compass-dialog__footer">Quelle: BFS voteinfo, eidgenössische Abstimmungen auf Gemeindeebene. {data.coverage.missingMunicipalityIds.length === 0 ? "Alle aktuellen räumlichen BFS-Gemeinden sind zugeordnet." : `${data.coverage.missingMunicipalityIds.length} aktuelle Gemeinden ohne vollständige Zuordnung sind nicht positioniert.`}</footer>}
