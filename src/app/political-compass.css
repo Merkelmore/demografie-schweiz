@@ -13,6 +13,14 @@
 .compass-filter__lead span { color: #65727d; font-size: 9px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 .compass-filter__lead button { min-height: 22px; border: 1px solid #cfd8df; border-radius: 2px; background: #fff; color: #172a3a; padding: 0 8px; font-size: 10px; font-weight: 700; }
 .compass-filter__lead button:hover { border-color: #172a3a; }
+.compass-municipality-search { position: relative; display: flex; align-items: center; min-width: 188px; margin-left: auto; }
+.compass-municipality-search input { width: 100%; min-height: 24px; border: 1px solid #cfd8df; border-radius: 2px; background: #fff; color: #172a3a; padding: 0 25px 0 8px; font-size: 10px; }
+.compass-municipality-search input:focus { border-color: #65161d; outline: none; }
+.compass-municipality-search > button { position: absolute; right: 2px; display: grid; width: 20px; height: 20px; place-items: center; border: 0; background: transparent; color: #65727d; padding: 0; }
+.compass-municipality-search ul { position: absolute; z-index: 2; top: calc(100% + 3px); right: 0; left: 0; max-height: 184px; overflow-y: auto; margin: 0; border: 1px solid #cfd8df; border-radius: 2px; background: #fff; box-shadow: 0 5px 14px rgb(23 42 58 / .16); padding: 3px; list-style: none; }
+.compass-municipality-search li button { display: grid; width: 100%; min-height: 30px; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; border: 0; background: transparent; color: #172a3a; padding: 4px 6px; font-size: 10px; font-weight: 700; text-align: left; }
+.compass-municipality-search li button:hover, .compass-municipality-search li button:focus-visible { background: #f2f5f7; outline: none; }
+.compass-municipality-search li span { color: #65727d; font-size: 9px; font-weight: 600; }
 .compass-filter__list { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .compass-filter__list label { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #dfe6ea; border-radius: 2px; background: #fff; padding: 2px 7px 2px 5px; color: #93a1a9; font-size: 10px; font-weight: 700; cursor: pointer; }
 .compass-filter__list input { position: absolute; width: 1px; height: 1px; opacity: 0; }
@@ -82,6 +90,8 @@
   .compass-dialog__header h2 { font-size: 17px; }
   .compass-info-button { font-size: 0 !important; width: 30px; padding: 0 !important; }
   .compass-filter { padding: 10px 12px; }
+  .compass-filter__lead { flex-wrap: wrap; }
+  .compass-municipality-search { width: 100%; min-width: 0; order: 2; }
   .compass-filter__list { max-height: 76px; overflow-y: auto; }
   .compass-workspace { padding: 10px; }
   .compass-method { padding: 12px; }

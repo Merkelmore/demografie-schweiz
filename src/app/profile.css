@@ -767,7 +767,7 @@
   .hover-card {
     left: 12px !important;
     top: auto !important;
-    bottom: 44px;
+    bottom: 56px;
     width: calc(100vw - 24px);
     max-height: min(62dvh, 470px);
   }

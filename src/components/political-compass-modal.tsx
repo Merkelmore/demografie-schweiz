@@ -35,6 +35,8 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
   const { data, error } = usePoliticalCompass();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => initialCantonCode ? new Set(cantons.filter(({ code }) => code !== initialCantonCode).map(({ code }) => code)) : new Set());
   const [hovered, setHovered] = useState<CompassPoint>();
+  const [municipalityQuery, setMunicipalityQuery] = useState("");
+  const [selectedMunicipalityId, setSelectedMunicipalityId] = useState<string>();
   const [methodOpen, setMethodOpen] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -53,7 +55,13 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
 
   const points = useMemo(() => (mode === "cantons" ? data?.cantons : data?.municipalities) ?? [], [data, mode]);
   const spread = useMemo(() => compassSpread(points), [points]);
-  const visiblePoints = useMemo(() => points.filter((point) => !hidden.has(pointCanton(point) ?? "")), [hidden, points]);
+  const selectedMunicipality = useMemo(() => selectedMunicipalityId ? points.find((point) => point.id === selectedMunicipalityId) : undefined, [points, selectedMunicipalityId]);
+  const visiblePoints = useMemo(() => selectedMunicipality ? [selectedMunicipality] : points.filter((point) => !hidden.has(pointCanton(point) ?? "")), [hidden, points, selectedMunicipality]);
+  const municipalityMatches = useMemo(() => {
+    if (mode !== "municipalities" || !municipalityQuery.trim() || selectedMunicipality) return [];
+    const query = municipalityQuery.trim().toLocaleLowerCase(language);
+    return points.filter((point): point is CompassPoint & { id: string } => typeof point.id === "string" && `${point.name} ${point.cantonName ?? ""}`.toLocaleLowerCase(language).includes(query)).slice(0, 8);
+  }, [language, mode, municipalityQuery, points, selectedMunicipality]);
   const origin = mode === "municipalities" ? visiblePoints.find(({ id }) => id === originMunicipalityId) : undefined;
   const missingOrigin = mode === "municipalities" && originMunicipalityId && data && !data.municipalities.some(({ id }) => id === originMunicipalityId);
   const title = mode === "cantons" ? t("compassCantons") : t("compassMunicipalities");
@@ -69,6 +77,19 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
       if (!next.delete(code)) next.add(code);
       return next;
     });
+  }
+
+  function selectMunicipality(point: CompassPoint & { id: string }) {
+    setSelectedMunicipalityId(point.id);
+    setMunicipalityQuery(point.name);
+    setHovered(undefined);
+    resetView();
+  }
+
+  function clearMunicipalitySearch() {
+    setSelectedMunicipalityId(undefined);
+    setMunicipalityQuery("");
+    setHovered(undefined);
   }
 
   function keepFocusInDialog(event: React.KeyboardEvent<HTMLElement>) {
@@ -93,7 +114,7 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
         <div className="compass-dialog__actions"><button type="button" className="compass-info-button" aria-expanded={methodOpen} onClick={() => setMethodOpen((open) => !open)}><Info size={17} />{t("methodology")}</button><button ref={closeButton} type="button" aria-label={t("compassClose")} onClick={onClose}><X size={18} /></button></div>
       </header>
       <div className="compass-filter">
-        <div className="compass-filter__lead"><span id="compass-filter-label">{t("cantons")}</span><button type="button" onClick={() => setHidden(new Set())}>{t("all")}</button><button type="button" onClick={() => setHidden(new Set(cantons.map(({ code }) => code)))}>{t("none")}</button></div>
+        <div className="compass-filter__lead"><span id="compass-filter-label">{t("cantons")}</span><button type="button" onClick={() => { setHidden(new Set()); clearMunicipalitySearch(); }}>{t("all")}</button><button type="button" onClick={() => { setHidden(new Set(cantons.map(({ code }) => code))); clearMunicipalitySearch(); }}>{t("none")}</button>{mode === "municipalities" && <div className="compass-municipality-search"><input type="search" aria-label={t("searchMunicipality")} placeholder={t("searchMunicipality")} value={municipalityQuery} onChange={(event) => { setMunicipalityQuery(event.target.value); setSelectedMunicipalityId(undefined); setHovered(undefined); }} />{municipalityQuery && <button type="button" aria-label={t("clearSearch")} onClick={clearMunicipalitySearch}><X size={13} /></button>}{municipalityMatches.length > 0 && <ul role="listbox" aria-label={t("searchResults")}>{municipalityMatches.map((point) => <li key={point.id}><button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectMunicipality(point)}>{point.name}<span>{point.cantonName}</span></button></li>)}</ul>}</div>}</div>
         <ul className="compass-filter__list" aria-labelledby="compass-filter-label">
           {cantons.map((canton) => <li key={canton.code} style={{ "--canton-color": cantonColor(canton.code) } as CSSProperties}>
             <label><input type="checkbox" aria-label={canton.name[language]} checked={!hidden.has(canton.code)} onChange={() => toggleCanton(canton.code)} /><i aria-hidden="true" />{canton.code}</label>
