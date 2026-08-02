@@ -568,13 +568,24 @@
   font-weight: 700;
 }
 
+.municipality-map-viewport {
+  position: relative;
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid #e3e8eb;
+  background: #f7f8f6;
+}
+
 .municipality-map {
   display: block;
   width: 100%;
   min-height: 220px;
   height: 100%;
-  border: 1px solid #e3e8eb;
-  background: #f7f8f6;
+  transition: transform 120ms ease-out;
+}
+
+.municipality-map-viewport--panning .municipality-map {
+  transition: none;
 }
 
 .municipality-region {
@@ -732,6 +743,8 @@
 
   .map-explorer {
     padding: 8px;
+    align-items: start;
+    align-content: start;
   }
 
   .map-nudge {
@@ -778,6 +791,7 @@
   .municipality-page { padding: 8px; }
   .municipality-explorer { min-height: 0; }
   .municipality-map-workspace { grid-template-rows: auto minmax(220px, 1fr); }
+  .municipality-map-viewport { touch-action: none; }
   .municipality-map-toolbar { flex-direction: column; align-items: start; gap: 8px; }
   .hover-card--municipality { bottom: 44px; max-height: min(62dvh, 620px); }
 }
