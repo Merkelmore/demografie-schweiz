@@ -255,6 +255,7 @@ export function CatalogExplorer() {
       </header>
       <main className="map-explorer" aria-label="Interaktive Karte der Schweizer Kantone">
         <div className="map-canvas map-canvas--full"><SwissCantonMap language="de" onHover={hoverCanton} onLeave={leaveCanton} selectedCode={activeCode ?? ""} onSelect={selectCanton} valueDomain={mapMetric === "political_orientation_score" ? [-0.6, 0.6] : mapMetric === "cultural_enrichment_score" ? [0, 100] : undefined} values={mapValues} /></div>
+        <p className="map-nudge">Auf einen Kanton zeigen oder klicken, um Kennzahlen zu sehen.</p>
         {mapError && <span className="map-availability">{mapError}</span>}
         {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
 

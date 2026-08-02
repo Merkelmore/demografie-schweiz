@@ -26,12 +26,12 @@ function CompassLabel({ position, text, tone, zoom }: { position: { x: number; y
   </g>;
 }
 
-export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: { mode: CompassMode; onClose: () => void; originMunicipalityId?: string }) {
+export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, initialCantonCode }: { mode: CompassMode; onClose: () => void; originMunicipalityId?: string; initialCantonCode?: string }) {
   const dialog = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const drag = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | undefined>(undefined);
   const { data, error } = usePoliticalCompass();
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => initialCantonCode ? new Set(cantons.filter(({ code }) => code !== initialCantonCode).map(({ code }) => code)) : new Set());
   const [hovered, setHovered] = useState<CompassPoint>();
   const [methodOpen, setMethodOpen] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });

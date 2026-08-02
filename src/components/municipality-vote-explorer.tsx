@@ -204,7 +204,7 @@ export function MunicipalityVoteExplorer({ cantonCode, onBack }: { cantonCode: s
         </aside>}
       </section>
       <p className="municipality-source">Quelle: Bundesamt für Statistik (BFS), eidgenössische Abstimmungsresultate auf Gemeindeebene. Die Karte enthält die 2&apos;105 räumlichen Gemeinden; 12 Auslandsgemeinden ohne Fläche sind nicht kartiert.</p>
-      {isCompassOpen && selected && <PoliticalCompassModal mode="municipalities" originMunicipalityId={String(selected.properties.vogeId)} onClose={() => setIsCompassOpen(false)} />}
+      {isCompassOpen && selected && <PoliticalCompassModal mode="municipalities" initialCantonCode={cantonCode} originMunicipalityId={String(selected.properties.vogeId)} onClose={() => setIsCompassOpen(false)} />}
     </main>
   );
 }
