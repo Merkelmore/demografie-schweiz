@@ -1,50 +1,41 @@
 "use client";
 
 import { Info, RotateCcw, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useEffect, useRef, useState, type CSSProperties } from "react";
+
+import { cantons } from "@/lib/cantons";
+import { cantonColor, compassChart, compassSpread, pointCanton, toChartPoint, usePoliticalCompass, type CompassPoint } from "@/lib/political-compass";
 
 type CompassMode = "cantons" | "municipalities";
-type CompassPoint = { id?: string; name: string; x: number; y: number; canton?: string; cantonName?: string };
-type Weight = { id: number; title: string; economicWeight: number; authorityWeight: number };
-type CompassData = {
-  cantons: CompassPoint[];
-  coverage: { currentMunicipalities: number; missingMunicipalityIds: string[] };
-  methodology: { excludedProposals: Record<string, string>; weights: Weight[] };
-  municipalities: CompassPoint[];
-};
 
-const chart = { center: 400, extent: 320, size: 800 };
-const number = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2, minimumFractionDigits: 2, signDisplay: "always" });
-
-function toChartPoint(point: CompassPoint) {
-  return { x: chart.center + point.x * (chart.extent / 100), y: chart.center - point.y * (chart.extent / 100) };
-}
+const pointRadius = { cantons: 8, municipalities: 4.2 };
+const quadrant = { origin: compassChart.center - compassChart.extent, side: compassChart.extent };
+const gridOffsets = [0.25, 0.5, 0.75].flatMap((fraction) => [compassChart.center - compassChart.extent * fraction, compassChart.center + compassChart.extent * fraction]);
 
 function formatWeight(weight: number) {
   return `${weight >= 0 ? "+" : ""}${weight.toFixed(1)}`;
+}
+
+/** A name pinned to a point. It counter-scales the zoom so the text stays legible however far the chart is zoomed. */
+function CompassLabel({ position, text, tone, zoom }: { position: { x: number; y: number }; text: string; tone: "hovered" | "origin"; zoom: number }) {
+  const flip = position.x > compassChart.center;
+
+  return <g className={`compass-label compass-label--${tone}`} transform={`translate(${position.x} ${position.y}) scale(${1 / zoom})`}>
+    <circle className="compass-label__ring" r="14" />
+    <text x={flip ? -21 : 21} y="8" textAnchor={flip ? "end" : "start"}>{text}</text>
+  </g>;
 }
 
 export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: { mode: CompassMode; onClose: () => void; originMunicipalityId?: string }) {
   const dialog = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const drag = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | undefined>(undefined);
-  const [data, setData] = useState<CompassData>();
-  const [error, setError] = useState<string>();
+  const { data, error } = usePoliticalCompass();
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [hovered, setHovered] = useState<CompassPoint>();
   const [methodOpen, setMethodOpen] = useState(false);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/data/political-compass.json", { signal: controller.signal })
-      .then((response) => response.ok ? response.json() as Promise<CompassData> : Promise.reject(new Error("snapshot")))
-      .then((snapshot) => { setData(snapshot); setError(undefined); })
-      .catch((requestError: unknown) => {
-        if ((requestError as { name?: string }).name !== "AbortError") setError("Der politische Kompass konnte nicht geladen werden.");
-      });
-    return () => controller.abort();
-  }, []);
 
   useEffect(() => {
     closeButton.current?.focus();
@@ -58,14 +49,24 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [onClose]);
 
-  const points = mode === "cantons" ? data?.cantons ?? [] : data?.municipalities ?? [];
+  const points = useMemo(() => (mode === "cantons" ? data?.cantons : data?.municipalities) ?? [], [data, mode]);
+  const spread = useMemo(() => compassSpread(points), [points]);
+  const visiblePoints = useMemo(() => points.filter((point) => !hidden.has(pointCanton(point) ?? "")), [hidden, points]);
+  const origin = mode === "municipalities" ? visiblePoints.find(({ id }) => id === originMunicipalityId) : undefined;
   const missingOrigin = mode === "municipalities" && originMunicipalityId && data && !data.municipalities.some(({ id }) => id === originMunicipalityId);
   const title = mode === "cantons" ? "Politischer Kompass der Kantone" : "Politischer Kompass der Gemeinden";
-  const pointLabel = mode === "cantons" ? "Kantone" : "Gemeinden";
 
   function resetView() {
     setPan({ x: 0, y: 0 });
     setZoom(1);
+  }
+
+  function toggleCanton(code: string) {
+    setHidden((current) => {
+      const next = new Set(current);
+      if (!next.delete(code)) next.add(code);
+      return next;
+    });
   }
 
   function keepFocusInDialog(event: React.KeyboardEvent<HTMLElement>) {
@@ -79,19 +80,27 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: {
   }
 
   function clampPan(next: { x: number; y: number }, nextZoom = zoom) {
-    const limit = chart.extent * (nextZoom - 1);
+    const limit = compassChart.extent * (nextZoom - 1);
     return { x: Math.max(-limit, Math.min(limit, next.x)), y: Math.max(-limit, Math.min(limit, next.y)) };
   }
 
   return <div className="compass-backdrop" role="presentation" onMouseDown={onClose}>
     <section ref={dialog} className="compass-dialog" role="dialog" aria-modal="true" aria-labelledby="compass-title" onKeyDown={keepFocusInDialog} onMouseDown={(event) => event.stopPropagation()}>
       <header className="compass-dialog__header">
-        <div><span>RELATIVES ABSTIMMUNGSMODELL</span><h2 id="compass-title">{title}</h2><p>{points.length.toLocaleString("de-CH")} {pointLabel} · mit dem Mausrad zoomen, ziehen zum Verschieben</p></div>
+        <h2 id="compass-title">Politischer Kompass</h2>
         <div className="compass-dialog__actions"><button type="button" className="compass-info-button" aria-expanded={methodOpen} onClick={() => setMethodOpen((open) => !open)}><Info size={17} />Berechnung</button><button ref={closeButton} type="button" aria-label="Politischen Kompass schliessen" onClick={onClose}><X size={18} /></button></div>
       </header>
+      <div className="compass-filter">
+        <div className="compass-filter__lead"><span id="compass-filter-label">Kantone</span><button type="button" onClick={() => setHidden(new Set())}>Alle</button><button type="button" onClick={() => setHidden(new Set(cantons.map(({ code }) => code)))}>Keine</button></div>
+        <ul className="compass-filter__list" aria-labelledby="compass-filter-label">
+          {cantons.map((canton) => <li key={canton.code} style={{ "--canton-color": cantonColor(canton.code) } as CSSProperties}>
+            <label><input type="checkbox" aria-label={canton.name.de} checked={!hidden.has(canton.code)} onChange={() => toggleCanton(canton.code)} /><i aria-hidden="true" />{canton.code}</label>
+          </li>)}
+        </ul>
+      </div>
       {methodOpen && data && <section className="compass-method" aria-label="Berechnung des politischen Kompasses">
         <p>Für jede Vorlage wird der exakte Ja-Anteil einer Gemeinde mit dem offiziellen Schweizer Ja-Anteil verglichen. Die Differenz wird durch die Streuung aller Gemeindeanteile geteilt und auf ±3 Standardabweichungen begrenzt.</p>
-        <p>Diese standardisierten Differenzen werden mit den Gewichten unten zu X (wirtschaftlich links ↔ rechts) und Y (libertär ↔ autoritär) summiert. Die fixe Skala von −100 bis +100 macht Kantone und Gemeinden direkt vergleichbar. Das sind relative Modellpositionen, keine objektiven Tatsachen über Menschen oder Orte.</p>
+        <p>Diese standardisierten Differenzen werden mit den Gewichten unten zu X (wirtschaftlich links ↔ rechts) und Y (libertär ↔ autoritär) summiert. Für die Darstellung wird jede Achse so gedehnt, dass die äussersten Punkte den Rand erreichen; die Reihenfolge der Positionen bleibt dabei erhalten. Das sind relative Modellpositionen, keine objektiven Tatsachen über Menschen oder Orte.</p>
         <div className="compass-method__table-wrap"><table><thead><tr><th>Vorlage</th><th>Wirtschaft</th><th>Autorität</th></tr></thead><tbody>{data.methodology.weights.map((weight) => <tr key={weight.id}><td>{weight.title}</td><td>{formatWeight(weight.economicWeight)}</td><td>{formatWeight(weight.authorityWeight)}</td></tr>)}</tbody></table></div>
         <p className="compass-method__excluded">Ausgeschlossen: {Object.values(data.methodology.excludedProposals).join(" · ")}</p>
       </section>}
@@ -100,19 +109,26 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId }: {
         {error && <p className="compass-status" role="alert">{error}</p>}
         {!error && !data && <p className="compass-status" aria-live="polite">Kompassdaten werden geladen …</p>}
         {data && <>
-          <svg className="compass-chart" viewBox={`0 0 ${chart.size} ${chart.size}`} role="img" aria-label={`${title} mit ${points.length} Punkten`} onWheel={(event) => { event.preventDefault(); const nextZoom = Math.max(1, Math.min(8, zoom * (event.deltaY < 0 ? 1.18 : 0.85))); setZoom(nextZoom); setPan(clampPan(pan, nextZoom)); }} onPointerDown={(event) => { drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: pan.x, originY: pan.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { if (!drag.current || drag.current.pointerId !== event.pointerId) return; const bounds = event.currentTarget.getBoundingClientRect(); const factor = chart.size / bounds.width; setPan(clampPan({ x: drag.current.originX + (event.clientX - drag.current.x) * factor, y: drag.current.originY + (event.clientY - drag.current.y) * factor })); }} onPointerUp={(event) => { if (drag.current?.pointerId === event.pointerId) drag.current = undefined; }}>
-            <g transform={`translate(${pan.x} ${pan.y}) translate(${chart.center} ${chart.center}) scale(${zoom}) translate(${-chart.center} ${-chart.center})`}>
-              <rect className="compass-quadrant compass-quadrant--authoritarian-left" x="80" y="80" width="320" height="320" />
-              <rect className="compass-quadrant compass-quadrant--authoritarian-right" x="400" y="80" width="320" height="320" />
-              <rect className="compass-quadrant compass-quadrant--libertarian-left" x="80" y="400" width="320" height="320" />
-              <rect className="compass-quadrant compass-quadrant--libertarian-right" x="400" y="400" width="320" height="320" />
-              <line className="compass-axis" x1="65" x2="735" y1="400" y2="400" /><line className="compass-axis" x1="400" x2="400" y1="65" y2="735" />
-              <text className="compass-quadrant-label" x="240" y="225">Aut. links</text><text className="compass-quadrant-label" x="560" y="225">Aut. rechts</text><text className="compass-quadrant-label" x="240" y="580">Lib. links</text><text className="compass-quadrant-label" x="560" y="580">Lib. rechts</text>
-              {points.map((point) => { const position = toChartPoint(point); return <circle key={point.id ?? point.name} className={`compass-point compass-point--${mode}`} cx={position.x} cy={position.y} r={mode === "cantons" ? 6 : 2.4} tabIndex={mode === "cantons" ? 0 : undefined} aria-label={`${point.name}${point.cantonName ? `, ${point.cantonName}` : ""}: wirtschaftlich ${number.format(point.x)}, autoritätsbezogen ${number.format(point.y)}`} onFocus={() => setHovered(point)} onPointerEnter={() => setHovered(point)} onPointerLeave={() => setHovered(undefined)} />; })}
+          <div className="compass-plot">
+          <span className="compass-plot__axis compass-plot__axis--top">Autorität</span>
+          <span className="compass-plot__axis compass-plot__axis--left">Links</span>
+          <svg className="compass-chart" viewBox={`0 0 ${compassChart.size} ${compassChart.size}`} role="img" aria-label={`${title} mit ${visiblePoints.length} Punkten`} onWheel={(event) => { event.preventDefault(); const nextZoom = Math.max(1, Math.min(8, zoom * (event.deltaY < 0 ? 1.18 : 0.85))); setZoom(nextZoom); setPan(clampPan(pan, nextZoom)); }} onPointerDown={(event) => { drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: pan.x, originY: pan.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { if (!drag.current || drag.current.pointerId !== event.pointerId) return; const bounds = event.currentTarget.getBoundingClientRect(); const factor = compassChart.size / bounds.width; setPan(clampPan({ x: drag.current.originX + (event.clientX - drag.current.x) * factor, y: drag.current.originY + (event.clientY - drag.current.y) * factor })); }} onPointerUp={(event) => { if (drag.current?.pointerId === event.pointerId) drag.current = undefined; }}>
+            <g transform={`translate(${pan.x} ${pan.y}) translate(${compassChart.center} ${compassChart.center}) scale(${zoom}) translate(${-compassChart.center} ${-compassChart.center})`}>
+              <rect className="compass-quadrant compass-quadrant--authoritarian-left" x={quadrant.origin} y={quadrant.origin} width={quadrant.side} height={quadrant.side} />
+              <rect className="compass-quadrant compass-quadrant--authoritarian-right" x={compassChart.center} y={quadrant.origin} width={quadrant.side} height={quadrant.side} />
+              <rect className="compass-quadrant compass-quadrant--libertarian-left" x={quadrant.origin} y={compassChart.center} width={quadrant.side} height={quadrant.side} />
+              <rect className="compass-quadrant compass-quadrant--libertarian-right" x={compassChart.center} y={compassChart.center} width={quadrant.side} height={quadrant.side} />
+              <g className="compass-grid">{gridOffsets.map((offset) => <g key={offset}><line x1={offset} x2={offset} y1={quadrant.origin} y2={quadrant.origin + quadrant.side * 2} /><line x1={quadrant.origin} x2={quadrant.origin + quadrant.side * 2} y1={offset} y2={offset} /></g>)}</g>
+              <line className="compass-axis" x1={quadrant.origin - 10} x2={quadrant.origin + quadrant.side * 2 + 10} y1={compassChart.center} y2={compassChart.center} /><line className="compass-axis" x1={compassChart.center} x2={compassChart.center} y1={quadrant.origin - 10} y2={quadrant.origin + quadrant.side * 2 + 10} />
+              {visiblePoints.map((point) => { const position = toChartPoint(point, spread); return <circle key={point.id ?? point.code ?? point.name} className={`compass-point compass-point--${mode}`} cx={position.x} cy={position.y} r={pointRadius[mode]} fill={cantonColor(pointCanton(point))} tabIndex={mode === "cantons" ? 0 : undefined} aria-label={point.cantonName ? `${point.name}, ${point.cantonName}` : point.name} onFocus={() => setHovered(point)} onBlur={() => setHovered(undefined)} onPointerEnter={() => setHovered(point)} onPointerLeave={() => setHovered(undefined)} />; })}
+              {origin && origin !== hovered && <CompassLabel position={toChartPoint(origin, spread)} text={origin.name} tone="origin" zoom={zoom} />}
+              {hovered && <CompassLabel position={toChartPoint(hovered, spread)} text={hovered.cantonName ? `${hovered.name} · ${hovered.cantonName}` : hovered.name} tone="hovered" zoom={zoom} />}
             </g>
-            <text className="compass-axis-label" x="78" y="386">wirtschaftlich links</text><text className="compass-axis-label" textAnchor="end" x="722" y="386">wirtschaftlich rechts</text><text className="compass-axis-label" textAnchor="middle" x="400" y="48">autoritär</text><text className="compass-axis-label" textAnchor="middle" x="400" y="770">libertär</text>
           </svg>
-          <div className="compass-controls"><button type="button" onClick={resetView}><RotateCcw size={15} />Ansicht zurücksetzen</button>{hovered ? <p><strong>{hovered.name}</strong>{hovered.cantonName && <> · {hovered.cantonName}</>}<span>X {number.format(hovered.x)} · Y {number.format(hovered.y)}</span></p> : <p>Über einen Punkt fahren für Name und Koordinaten.</p>}</div>
+          <span className="compass-plot__axis compass-plot__axis--right">Rechts</span>
+          <span className="compass-plot__axis compass-plot__axis--bottom">Libertär</span>
+          </div>
+          <div className="compass-controls"><button type="button" onClick={resetView}><RotateCcw size={15} />Ansicht zurücksetzen</button><p>{hovered ? <strong>{hovered.cantonName ? `${hovered.name} · ${hovered.cantonName}` : hovered.name}</strong> : "Über einen Punkt fahren für den Namen."}</p></div>
         </>}
       </div>
       {data && <footer className="compass-dialog__footer">Quelle: BFS voteinfo, eidgenössische Abstimmungen auf Gemeindeebene. {data.coverage.missingMunicipalityIds.length === 0 ? "Alle aktuellen räumlichen BFS-Gemeinden sind zugeordnet." : `${data.coverage.missingMunicipalityIds.length} aktuelle Gemeinden ohne vollständige Zuordnung sind nicht positioniert.`}</footer>}

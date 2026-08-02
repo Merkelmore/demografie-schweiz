@@ -7,6 +7,7 @@ import { SwissCantonMap } from "@/components/swiss-canton-map";
 import { MunicipalityVoteExplorer } from "@/components/municipality-vote-explorer";
 import { PoliticalCompassModal } from "@/components/political-compass-modal";
 import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
+import { useHoverCardPlacement } from "@/lib/use-hover-card";
 
 const number = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
 
@@ -22,8 +23,8 @@ const categories = [
 ] as const;
 
 const cardCacheTtl = 5 * 60 * 1000;
-const hoverDelay = 180;
-const balancedPoliticalScoreThreshold = 0.026;
+const cardWidth = 340;
+const hoverDelay = 110;
 
 type Metric = CantonCardResponse["metrics"][number];
 type CategoryCode = (typeof categories)[number]["code"];
@@ -32,7 +33,7 @@ type Source = { metric: string; referenceDate: string | null; title: string; url
 
 function formatMetric(metric?: Metric) {
   if (!metric || metric.value === null) return metric?.unavailableReason ?? "Nicht importiert";
-  const suffix = metric.unit === "percent" ? " %" : metric.unit === "per_1000" ? " pro 1'000" : metric.unit === "per_100000" ? " pro 100'000" : metric.unit === "births_per_woman" ? " Kinder je Frau" : "";
+  const suffix = metric.unit === "percent" ? " %" : metric.unit === "per_1000" ? " pro 1'000" : metric.unit === "per_100000" ? " pro 100'000" : "";
   return `${number.format(metric.value)}${suffix}`;
 }
 
@@ -42,9 +43,7 @@ function formatScore(metric?: Metric) {
 }
 
 function formatPoliticalTendency(metric?: Metric) {
-  if (!metric || metric.value === null) return formatScore(metric);
-  const tendency = Math.abs(metric.value) <= balancedPoliticalScoreThreshold ? "ausgeglichen" : metric.value > 0 ? "rechts" : "links";
-  return `${formatScore(metric)} (${tendency})`;
+  return formatScore(metric);
 }
 
 function formatCulturalScore(metric?: Metric) {
@@ -52,20 +51,11 @@ function formatCulturalScore(metric?: Metric) {
   return `${number.format(metric.value)} / 100`;
 }
 
-function hasElectionShares(partyShares: CantonCardResponse["election"]["partyShares"]) {
-  return ["SP", "GPS", "Mitte", "GLP", "FDP", "SVP"].every((party) => party in partyShares);
-}
-
-function formatElectionShares(partyShares: CantonCardResponse["election"]["partyShares"]) {
-  return ["SP", "GPS", "Mitte", "GLP", "FDP", "SVP"].map((party) => `${party} ${number.format(partyShares[party as keyof typeof partyShares] ?? 0)} %`).join(" · ");
-}
-
 export function CatalogExplorer() {
   const [mapMetric, setMapMetric] = useState<CategoryCode>("population_total");
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const [pinnedCode, setPinnedCode] = useState<string | null>(null);
   const [compassMode, setCompassMode] = useState<"cantons" | null>(null);
-  const [cardPosition, setCardPosition] = useState({ x: 24, y: 76 });
   const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [sources, setSources] = useState<Source[]>();
@@ -77,6 +67,7 @@ export function CatalogExplorer() {
   const [municipalityCanton, setMunicipalityCanton] = useState<string | null>(null);
   const cardCache = useRef(new Map<string, CachedCard>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { cardRef, place, style: cardStyle } = useHoverCardPlacement(cardWidth);
   const activeCode = pinnedCode ?? hoveredCode;
 
   useEffect(() => {
@@ -178,8 +169,6 @@ export function CatalogExplorer() {
 
   const metrics = new Map(card?.metrics.map((metric) => [metric.code, metric]));
   const mapValues = map?.values;
-  const electionShares = card?.election.partyShares ?? {};
-  const electionAvailable = hasElectionShares(electionShares);
   const culturalScore = metrics.get("cultural_enrichment_score");
   const activeCategory = categories.find((category) => category.code === mapMetric) ?? categories[0];
   const activeMetric = metrics.get(mapMetric);
@@ -192,18 +181,9 @@ export function CatalogExplorer() {
     }
   }
 
-  function positionCard(position: { x: number; y: number }) {
-    const cardWidth = 340;
-    const cardHeight = 470;
-    setCardPosition({
-      x: Math.max(12, Math.min(position.x + 16, window.innerWidth - cardWidth - 12)),
-      y: Math.max(64, Math.min(position.y + 16, window.innerHeight - cardHeight - 12)),
-    });
-  }
-
   function hoverCanton(code: string, position: { x: number; y: number }) {
     if (pinnedCode) return;
-    positionCard(position);
+    place(position);
     if (hoveredCode === code) return;
 
     clearHoverTimer();
@@ -230,8 +210,9 @@ export function CatalogExplorer() {
     }, hoverDelay);
   }
 
-  function selectCanton(code: string) {
+  function selectCanton(code: string, position?: { x: number; y: number }) {
     clearHoverTimer();
+    if (position) place(position);
     setPinnedCode((selected) => selected === code ? null : code);
     setHoveredCode(code);
   }
@@ -277,8 +258,14 @@ export function CatalogExplorer() {
         {mapError && <span className="map-availability">{mapError}</span>}
         {!mapError && map && Object.keys(mapValues ?? {}).length === 0 && <span className="map-availability">Keine Kantonswerte</span>}
 
-        {isCardVisible && <aside className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label="Kantonsdaten" style={{ left: cardPosition.x, top: cardPosition.y }} onPointerEnter={clearHoverTimer} onPointerLeave={leaveCanton}>
-          <div className="hover-card__header"><div><span>KANTON</span><h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1></div>{pinnedCode && <button type="button" aria-label="Fixierte Kantonsdaten schliessen" onClick={closeCantonCard}><X size={16} /></button>}</div>
+        {isCardVisible && <aside ref={cardRef} className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label="Kantonsdaten" style={cardStyle} onPointerEnter={clearHoverTimer} onPointerLeave={leaveCanton}>
+          <div className="hover-card__header">
+            <div className="hover-card__identity">
+              <h1>{card?.selectedGeo.name ?? "Wird geladen …"}</h1>
+              {pinnedCode && <div className="hover-card__quick-actions"><button type="button" onClick={openMunicipalityVotes}>Gemeinde-Ebene</button><button type="button" onClick={() => setCompassMode("cantons")}>Politischer Kompass</button></div>}
+            </div>
+            {pinnedCode && <button type="button" aria-label="Fixierte Kantonsdaten schliessen" onClick={closeCantonCard}><X size={16} /></button>}
+          </div>
           {cardError && <p className="hover-card__error">{cardError}</p>}
           {!cardError && <>
             {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric) : formatMetric(activeMetric)}</strong></div>}
@@ -290,9 +277,8 @@ export function CatalogExplorer() {
               <div><dt>Ausländische Bevölkerung</dt><dd>{formatMetric(metrics.get("population_foreign_percent"))}</dd></div>
               <div><dt>Fertilitätsrate</dt><dd>{formatMetric(metrics.get("fertility_tfr"))}</dd></div>
               <div><dt>Erwerbslosenquote (BFS)</dt><dd>{formatMetric(metrics.get("unemployment_rate"))}</dd></div>
-              <div className="hover-card__political"><dt>Politische Tendenz {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{electionAvailable ? <><span>{formatElectionShares(electionShares)}</span><span>Score {formatPoliticalTendency(metrics.get("political_orientation_score"))}</span></> : formatPoliticalTendency(metrics.get("political_orientation_score"))}</dd></div>
+              <div><dt>Politische Tendenz {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{formatPoliticalTendency(metrics.get("political_orientation_score"))}</dd></div>
             </dl>
-            {pinnedCode && <div className="hover-card__actions"><button type="button" onClick={openMunicipalityVotes}>Gemeinde-Abstimmungen</button><button type="button" onClick={() => setCompassMode("cantons")}>Politischer Kompass</button></div>}
           </>}
         </aside>}
       </main>

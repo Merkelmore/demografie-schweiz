@@ -119,7 +119,7 @@
   position: fixed;
   z-index: 3;
   width: min(340px, calc(100vw - 24px));
-  max-height: calc(100dvh - 76px);
+  max-height: calc(100dvh - 24px);
   overflow-y: auto;
   border: 1px solid #cfd8df;
   background: #ffffff;
@@ -142,7 +142,6 @@
   border-bottom: 1px solid #e3e8eb;
 }
 
-.hover-card__header span,
 .methodology-dialog__header span {
   color: #65727d;
   font-size: 9px;
@@ -152,7 +151,7 @@
 
 .hover-card h1,
 .methodology-dialog h2 {
-  margin: 3px 0 0;
+  margin: 0;
   color: #172a3a;
   font-family: var(--font-dm-sans), sans-serif;
   font-size: 18px;
@@ -160,7 +159,44 @@
   line-height: 1.15;
 }
 
-.hover-card__header button,
+.hover-card__identity {
+  display: grid;
+  flex: 1;
+  gap: 9px;
+  min-width: 0;
+}
+
+.hover-card__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hover-card__quick-actions button {
+  min-width: 0;
+  min-height: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid #d5c0c2;
+  border-radius: 2px;
+  background: #fdf6f6;
+  color: #8b2028;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hover-card__quick-actions button:hover,
+.hover-card__quick-actions button:focus-visible {
+  border-color: #a4212a;
+  background: #a4212a;
+  color: #ffffff;
+  outline: none;
+}
+
+/* The close button only — the quick actions inside the header size themselves. */
+.hover-card__header > button,
 .methodology-dialog__header button {
   display: grid;
   width: 28px;
@@ -238,19 +274,6 @@
   text-align: right;
 }
 
-.hover-card__facts > .hover-card__political {
-  display: block;
-  min-height: 0;
-  padding: 9px 16px;
-}
-
-.hover-card__political dd {
-  display: grid;
-  gap: 4px;
-  margin-top: 5px;
-  text-align: left;
-}
-
 .hover-card__error {
   margin: 0;
   padding: 16px;
@@ -258,25 +281,6 @@
   font-size: 12px;
   line-height: 1.4;
 }
-
-.hover-card__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 12px 16px;
-}
-
-.hover-card__actions button {
-  min-height: 32px;
-  border: 1px solid #a4212a;
-  border-radius: 2px;
-  background: #fff;
-  color: #8b2028;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.hover-card__actions--single { grid-template-columns: 1fr; }
 
 .methodology-backdrop {
   position: fixed;
@@ -485,8 +489,14 @@
   font-size: 11px;
 }
 
+/* A definite page height is what makes the 1fr rows below actually bound the map instead of growing with it. */
+.municipality-map-page {
+  height: 100dvh;
+}
+
 .municipality-page {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   overflow: auto;
   padding: clamp(12px, 2vw, 24px);
@@ -495,8 +505,8 @@
 
 .municipality-explorer {
   width: min(1280px, 100%);
-  min-height: min(74dvh, 650px);
-  margin: auto;
+  min-height: 0;
+  margin: 0 auto;
   border: 1px solid #cfd8df;
   background: #fff;
 }
@@ -504,29 +514,22 @@
 .municipality-map-workspace {
   display: grid;
   min-width: 0;
-  grid-template-rows: auto minmax(300px, 1fr) auto;
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto minmax(220px, 1fr) auto;
   padding: clamp(12px, 2vw, 22px);
 }
 
 .municipality-map-toolbar {
-  display: grid;
-  grid-template-columns: auto minmax(150px, 1fr) minmax(210px, .8fr);
-  gap: 14px;
-  align-items: center;
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
   margin-bottom: 14px;
-}
-
-.municipality-map-toolbar > div > span,
-.municipality-proposal-select > span {
-  color: #65727d;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .08em;
 }
 
 .municipality-map-toolbar h1,
 .hover-card--municipality h2 {
-  margin: 3px 0 0;
+  margin: 0;
   color: #172a3a;
   font-size: 18px;
   line-height: 1.15;
@@ -544,39 +547,10 @@
   font-weight: 700;
 }
 
-.municipality-proposal-select {
-  position: relative;
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.municipality-proposal-select select {
-  width: 100%;
-  min-width: 0;
-  height: 32px;
-  appearance: none;
-  border: 1px solid #cfd8df;
-  border-radius: 2px;
-  background: #fff;
-  color: #172a3a;
-  padding: 0 28px 0 8px;
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-}
-
-.municipality-proposal-select svg {
-  position: absolute;
-  right: 8px;
-  bottom: 9px;
-  pointer-events: none;
-}
-
 .municipality-map {
   display: block;
   width: 100%;
-  min-height: 300px;
+  min-height: 220px;
   height: 100%;
   border: 1px solid #e3e8eb;
   background: #f7f8f6;
@@ -602,27 +576,26 @@
 .municipality-legend {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 12px 0 0;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.municipality-legend .compass-miniature svg {
+  width: 62px;
+  height: 62px;
+}
+
+.municipality-legend p {
+  max-width: 520px;
+  margin: 0;
   color: #65727d;
   font-size: 10px;
-}
-
-.municipality-legend i {
-  width: 96px;
-  height: 9px;
-  background: linear-gradient(90deg, hsl(356 57% 94%), hsl(356 57% 49%));
-}
-
-.municipality-legend strong {
-  margin-left: auto;
-  color: #9d3d35;
-  font-size: 10px;
+  line-height: 1.45;
 }
 
 .hover-card--municipality {
   width: min(410px, calc(100vw - 24px));
-  max-height: min(620px, calc(100dvh - 76px));
+  max-height: min(660px, calc(100dvh - 24px));
 }
 
 .hover-card--municipality h2 {
@@ -634,20 +607,71 @@
   line-height: 1.15;
 }
 
-.municipality-hover-card__content > p {
-  margin: 0;
-  padding: 12px 16px 4px;
-  color: #65727d;
-  font-size: 12px;
-  line-height: 1.45;
+.municipality-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e3e8eb;
+  background: #f6f8f9;
 }
 
-.municipality-voting-day { padding: 12px 16px; border-bottom: 1px solid #e3e8eb; }
-.municipality-voting-day h3 { margin: 0 0 8px; color: #65161d; font-size: 12px; }
-.municipality-voting-day > div { display: grid; gap: 3px; padding: 9px 0; border-top: 1px solid #eef1f3; }
-.municipality-voting-day strong { color: #172a3a; font-size: 11px; line-height: 1.35; }
-.municipality-voting-day span { color: #172a3a; font-size: 11px; font-weight: 700; }
-.municipality-voting-day small { color: #65727d; font-size: 10px; line-height: 1.35; }
+.municipality-summary__stat span {
+  display: block;
+  color: #65727d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.municipality-summary__stat strong {
+  color: #172a3a;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.municipality-summary .compass-miniature,
+.municipality-summary__missing {
+  grid-row: span 2;
+}
+
+.municipality-summary__missing {
+  align-self: center;
+  width: 96px;
+  margin: 0;
+  color: #65727d;
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.municipality-summary > button {
+  align-self: start;
+  min-height: 30px;
+  border: 1px solid #a4212a;
+  border-radius: 2px;
+  background: #fff;
+  color: #8b2028;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.municipality-summary > button:hover,
+.municipality-summary > button:focus-visible {
+  background: #a4212a;
+  color: #ffffff;
+  outline: none;
+}
+
+.municipality-proposals { margin: 0; padding: 0; list-style: none; }
+.municipality-proposals li { display: grid; gap: 3px; padding: 10px 16px; border-bottom: 1px solid #eef1f3; }
+.municipality-proposals strong { color: #172a3a; font-size: 11px; line-height: 1.35; }
+.municipality-proposals span { color: #172a3a; font-size: 11px; font-weight: 700; }
+.municipality-proposals small { color: #65727d; font-size: 10px; line-height: 1.35; }
 .municipality-source { width: min(1280px, 100%); margin: 10px auto 0; color: #65727d; font-size: 10px; line-height: 1.4; }
 .municipality-status { display: grid; min-height: 300px; place-items: center; margin: 0; color: #65727d; }
 
@@ -747,8 +771,7 @@
   .municipality-page { padding: 8px; }
   .municipality-explorer { min-height: 0; }
   .municipality-map-workspace { grid-template-rows: auto 380px auto; }
-  .municipality-map-toolbar { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .municipality-map-toolbar > div { grid-column: span 2; order: -1; }
-  .municipality-back { grid-column: span 2; }
+  .municipality-map-toolbar { flex-direction: column; align-items: start; gap: 8px; }
+  .municipality-legend { flex-direction: column; align-items: start; gap: 8px; }
   .hover-card--municipality { bottom: 44px; max-height: min(62dvh, 620px); }
 }

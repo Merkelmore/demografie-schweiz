@@ -1,7 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState, type TouchEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 
 import { getCanton, type Language } from "@/lib/cantons";
 
@@ -90,7 +90,7 @@ type SwissCantonMapProps = {
   language: Language;
   onHover?: (code: string, position: { x: number; y: number }) => void;
   onLeave?: (code: string) => void;
-  onSelect: (code: string) => void;
+  onSelect: (code: string, position?: { x: number; y: number }) => void;
   selectedCode: string;
   valueDomain?: readonly [number, number];
   values?: Record<string, number>;
@@ -131,6 +131,12 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
       active = false;
     };
   }, []);
+
+  /** Projecting 26 outlines is far too much work to redo on every pan, zoom or hover frame. */
+  const regions = useMemo(() => features.flatMap((feature, index) => {
+    const canton = getCanton(codesByName[feature.properties.kan_name[0]] ?? "");
+    return canton ? [{ canton, index, path: featureToPath(feature) }] : [];
+  }), [features]);
 
   if (loadError) {
     return <p className="map-status" role="alert">Die Kantonskarte konnte nicht geladen werden.</p>;
@@ -234,39 +240,29 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
   return (
     <div className={`map-zoom-viewport ${isPanning ? "map-zoom-viewport--panning" : ""}`} onTouchEnd={endTouch} onTouchMove={moveTouch} onTouchStart={startTouch}>
       <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} role="group" aria-label="Interaktive Karte der Schweizer Kantone" style={{ transform: `translate(${mapOffset.x}px, ${mapOffset.y}px) scale(${mapZoom})` }}>
-        {features.map((feature, index) => {
-        const sourceName = feature.properties.kan_name[0];
-        const code = codesByName[sourceName];
-        const canton = code ? getCanton(code) : undefined;
-
-        if (!canton) return null;
-
+        {regions.map(({ canton, index, path }) => {
         const cantonCode = canton.code;
         const isSelected = cantonCode === selectedCode;
-        const label = language === "de" ? `${canton.name.de}: Gemeinde-Abstimmungen öffnen` : `Open municipality votes for ${canton.name.en}`;
+        const label = language === "de" ? `${canton.name.de}: Kantonsdaten anzeigen` : `Show canton data for ${canton.name.en}`;
         const value = values?.[cantonCode];
         const normalizedValue = hasValues && value !== undefined ? maximumValue > minimumValue ? Math.max(0, Math.min(1, (value - minimumValue) / (maximumValue - minimumValue))) : 0.5 : null;
         const lightness = normalizedValue === null ? 88 : 91 - normalizedValue * (valueDomain ? 43 : 35);
-
-        function reportHover(position: { x: number; y: number }) {
-          onHover?.(cantonCode, position);
-        }
 
         return (
           <path
             aria-label={label}
             className={`map-region ${isSelected ? "selected" : ""}`}
-            d={featureToPath(feature)}
+            d={path}
             key={cantonCode}
             role="button"
             style={{ "--region-index": index, "--region-lightness": `${lightness}%` } as React.CSSProperties}
             tabIndex={0}
-            onClick={() => {
+            onClick={(event) => {
               if (suppressClickRef.current) {
                 suppressClickRef.current = false;
                 return;
               }
-              onSelect(cantonCode);
+              onSelect(cantonCode, { x: event.clientX, y: event.clientY });
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -275,7 +271,7 @@ export function SwissCantonMap({ language, onHover, onLeave, onSelect, selectedC
               }
             }}
             onPointerEnter={(event) => {
-              if (event.pointerType === "mouse") reportHover({ x: event.clientX, y: event.clientY });
+              if (event.pointerType === "mouse") onHover?.(cantonCode, { x: event.clientX, y: event.clientY });
             }}
             onPointerLeave={(event) => {
               if (event.pointerType === "mouse") onLeave?.(cantonCode);
