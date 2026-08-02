@@ -56,7 +56,10 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
   const points = useMemo(() => (mode === "cantons" ? data?.cantons : data?.municipalities) ?? [], [data, mode]);
   const spread = useMemo(() => compassSpread(points), [points]);
   const selectedMunicipality = useMemo(() => selectedMunicipalityId ? points.find((point) => point.id === selectedMunicipalityId) : undefined, [points, selectedMunicipalityId]);
-  const visiblePoints = useMemo(() => selectedMunicipality ? [selectedMunicipality] : points.filter((point) => !hidden.has(pointCanton(point) ?? "")), [hidden, points, selectedMunicipality]);
+  const visiblePoints = useMemo(() => {
+    const cantonPoints = points.filter((point) => !hidden.has(pointCanton(point) ?? ""));
+    return selectedMunicipality && !cantonPoints.some((point) => point.id === selectedMunicipality.id) ? [...cantonPoints, selectedMunicipality] : cantonPoints;
+  }, [hidden, points, selectedMunicipality]);
   const municipalityMatches = useMemo(() => {
     if (mode !== "municipalities" || !municipalityQuery.trim() || selectedMunicipality) return [];
     const query = municipalityQuery.trim().toLocaleLowerCase(language);
@@ -82,6 +85,7 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
   function selectMunicipality(point: CompassPoint & { id: string }) {
     setSelectedMunicipalityId(point.id);
     setMunicipalityQuery(point.name);
+    setHidden(new Set(cantons.map(({ code }) => code)));
     setHovered(undefined);
     resetView();
   }
