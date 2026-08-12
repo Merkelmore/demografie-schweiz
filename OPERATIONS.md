@@ -15,6 +15,11 @@ The runtime database connection is stored only in
 credentials use a separate file and are not available to the running website.
 Neither file belongs in Git.
 
+Production connections verify both the Supabase certificate authority and the
+pooler hostname. The public Supabase 2021 production CA is bundled in the
+container; the database password remains only in the protected environment
+file.
+
 ## Health check
 
 `/api/catalog/map?metric=population_total` must return HTTP 200 with data.

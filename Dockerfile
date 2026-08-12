@@ -29,6 +29,7 @@ COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nextjs /app/db/migrations ./db/migrations
 COPY --from=builder --chown=nextjs:nextjs /app/scripts/db.mjs ./scripts/db.mjs
 COPY --from=builder --chown=nextjs:nextjs /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=builder --chown=nextjs:nextjs /app/certs/supabase-prod-ca-2021.crt ./certs/supabase-prod-ca-2021.crt
 
 USER nextjs
 EXPOSE 3000

@@ -21,7 +21,11 @@ export function createDatabasePool() {
   if (configuredUrl) {
     const parsedUrl = new URL(configuredUrl);
     if (process.env.NODE_ENV === "production") {
-      parsedUrl.searchParams.set("sslmode", "require");
+      parsedUrl.searchParams.set("sslmode", "verify-full");
+      parsedUrl.searchParams.set(
+        "sslrootcert",
+        process.env.PG_SSL_ROOT_CERT ?? "/app/certs/supabase-prod-ca-2021.crt",
+      );
       parsedUrl.searchParams.set("uselibpqcompat", "true");
     }
     return new Pool({
