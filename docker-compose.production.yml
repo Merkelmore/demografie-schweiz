@@ -1,17 +1,27 @@
+name: politik-kompass
+
 services:
   app:
-    image: cultural-enrichment-radar:latest
+    image: politik-kompass:${IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - ${ENV_FILE:-.env.production}
+      - ${ENV_FILE:-/etc/production-secrets/politik-kompass.env}
     expose:
       - "3000"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+    networks:
+      gateway:
+        aliases:
+          - politik-kompass
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/catalog/map?metric=population_total').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
       interval: 30s
@@ -20,31 +30,24 @@ services:
       start_period: 20s
 
   migrate:
-    image: cultural-enrichment-radar:latest
+    profiles: ["maintenance"]
+    image: politik-kompass:${IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile
     command: ["node", "scripts/migrate.mjs"]
     env_file:
-      - ${ENV_FILE:-.env.production}
+      - ${MIGRATION_ENV_FILE:-/etc/production-secrets/politik-kompass-migration.env}
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     restart: "no"
 
-  caddy:
-    image: caddy:2.10-alpine
-    depends_on:
-      app:
-        condition: service_healthy
-    environment:
-      DOMAIN: politik-kompass-schweiz.info, www.politik-kompass-schweiz.info
-    ports:
-      - "80:80"
-      - "443:443"
-    restart: unless-stopped
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-
-volumes:
-  caddy_data:
-  caddy_config:
+networks:
+  gateway:
+    external: true
+    name: production_gateway
