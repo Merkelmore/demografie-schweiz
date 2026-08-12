@@ -1,127 +1,12 @@
 # Cultural Enrichment Radar
 
-Interaktiver Explorer für amtliche Schweizer Kennzahlen. Die Anwendung zeigt nur Werte mit dokumentierter Quelle, Datenstand und Geografieebene. Fehlende Gemeindewerte werden nicht geschätzt und nicht durch Kantonswerte ersetzt.
+Interaktiver Explorer fÃ¼r amtliche Schweizer Kennzahlen. Die Anwendung zeigt nur Werte mit dokumentierter Quelle, Datenstand und Geografieebene. Fehlende Gemeindewerte werden nicht geschÃ¤tzt und nicht durch Kantonswerte ersetzt.
 
-## GG deployment command
+## Production operations
 
-Production installs the shared `gg-deploy` command at `/usr/local/bin/gg-deploy`. It reads the standard `gg-deploy.env` manifest, updates a Git checkout as its owning user, and rebuilds the declared Docker Compose service. It only accepts project directories below `/srv` and uses `git merge --ff-only`, so it does not overwrite local recovery changes.
+Production is managed explicitly from the private `Merkelmore/production-operations` repository. A merge does not deploy. The central gateway owns HTTPS and public ports, while this repository supplies the unprivileged application container.
 
-To register a future GG project, place its checkout under `/srv`, add `gg-deploy.env` with `BRANCH`, `COMPOSE_FILE`, and `ENV_FILE`, and invoke `gg-deploy /srv/<project-directory>` from its deployment workflow. Domain routing remains explicit in that project's Compose/Caddy configuration.
-
-The full project-agnostic procedure — including the domain, production environment, and production directory a new project has to provide — is documented in [`docs/gg-deployment.md`](docs/gg-deployment.md).
-
-## Production deployment (Supabase + Hetzner)
-
-The production setup is built for one Next.js container, a managed Supabase PostgreSQL database, and Caddy as the only public reverse proxy. The application and the database are never published directly: only Caddy listens on ports `80` and `443`.
-
-Before the first deployment, the following must be available:
-
-- A domain or subdomain, for example `radar.example.ch`.
-- A Hetzner server with a public IPv4 address.
-- An empty Supabase project with a database password set.
-- Two Supabase connection strings kept outside this repository: the **direct** connection for the one-off restore and the **session pooler** connection for application runtime. Both require TLS.
-
-Do not place either connection string in a ticket, chat, commit, or screenshot. Enter them only in a local terminal or the server's restricted environment file.
-
-### 1. Verify and export the local catalog
-
-Confirm that all local schema migrations are applied and that the local Docker database contains the catalog to publish:
-
-```powershell
-npm run db:status
-docker compose exec postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --file=/tmp/catalog.dump'
-docker compose cp postgres:/tmp/catalog.dump .\catalog.dump
-```
-
-`catalog.dump` contains both the audited catalog data and its migration history. Treat it as confidential operational data and delete the copy after the restore has been verified.
-
-Transfer the dump to the server through a secure administrative channel, for example:
-
-```powershell
-scp .\catalog.dump DEPLOY_USER@SERVER_IP:/home/DEPLOY_USER/
-```
-
-### 2. Prepare Supabase
-
-In Supabase, copy the direct PostgreSQL connection string for the restore and the session-pooler connection string for runtime. The runtime URL normally uses port `5432`; append `sslmode=require&uselibpqcompat=true`. This keeps the connection encrypted while using PostgreSQL's standard `require` behavior for the shared pooler's certificate chain. Do not use a pooler URL for `pg_restore` unless Supabase explicitly documents it as supported for restores.
-
-Run the restore once from a trusted machine with Docker. Set `SUPABASE_DIRECT_DATABASE_URL` directly in that terminal, then execute:
-
-```powershell
-docker run --rm -v "${PWD}:/backup" --env SUPABASE_DIRECT_DATABASE_URL postgres:17-alpine sh -lc 'pg_restore --clean --if-exists --no-owner --no-privileges --dbname="$SUPABASE_DIRECT_DATABASE_URL" /backup/catalog.dump'
-```
-
-Afterwards, confirm in Supabase that the `schema_migration`, `geo_unit`, `metric_definition`, and observation tables exist. The production migration service checks migration checksums on every deployment and applies only new migrations; do not edit a migration that has already been restored or applied.
-
-### 3. Prepare the Hetzner server
-
-Install a current Docker Engine and Docker Compose plugin using Docker's official instructions for the server operating system. Confirm both commands work for the deployment user:
-
-```bash
-docker --version
-docker compose version
-```
-
-At both the Hetzner Cloud Firewall and the host firewall, allow only SSH administration plus HTTP and HTTPS. Keep the database port `5432` and application port `3000` closed to the internet.
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-```
-
-Clone the repository on the server and create a production-only environment file. The runtime database URL must be the Supabase **session-pooler** URL, not the direct restore URL.
-
-```bash
-git clone REPOSITORY_URL cultural-enrichment-radar
-cd cultural-enrichment-radar
-cp .env.example .env.production
-chmod 600 .env.production
-nano .env.production
-```
-
-Set these values in `.env.production`:
-
-```dotenv
-DATABASE_URL=postgresql://...pooler.supabase.com:5432/postgres?sslmode=require&uselibpqcompat=true
-PG_POOL_MAX=5
-NODE_ENV=production
-PORT=3000
-DOMAIN=radar.example.ch
-```
-
-### 4. Configure DNS and launch
-
-At the DNS provider, create an `A` record from the final hostname to the Hetzner server's public IPv4 address. Do this before starting Caddy. Caddy obtains and renews the TLS certificate automatically only when the hostname resolves publicly to this server and ports `80` and `443` are reachable.
-
-On the server, start the stack:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
-docker compose --env-file .env.production -f docker-compose.production.yml ps
-```
-
-The `migrate` container must finish with exit code `0`. The `app` container then becomes healthy only after a real catalog query succeeds; Caddy starts only after that health check. Inspect a failed launch without printing the environment file:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.production.yml logs --tail=100 migrate app caddy
-```
-
-Once DNS has propagated, verify automatic HTTP-to-HTTPS redirection and the live catalog endpoint:
-
-```bash
-curl -I http://radar.example.ch
-curl -I https://radar.example.ch
-curl -fsS https://radar.example.ch/api/catalog/map?metric=population_total
-```
-
-The first request should redirect to HTTPS, the HTTPS response should have a valid certificate, and the API request should return JSON. Caddy persists certificate material in Docker volumes, so normal container restarts do not cause certificate reissuance.
-
-### Automatic deployments
-
-The repository includes a GitHub Actions workflow that deploys every push to `master`. Configure `DEPLOY_USER` plus either `DEPLOY_SSH_KEY` (recommended) or `DEPLOY_PASSWORD` as repository secrets. The workflow already knows this server's address; it installs the shared `gg-deploy` command and runs it against the production checkout at `/srv/cultural-enrichment-radar`. The deployment account needs write access to that checkout and permission to run Docker Compose. The workflow fetches and fast-forwards rather than using `git reset --hard`, so unrelated local Caddy recovery edits are not overwritten.
-
+The existing managed Supabase project remains the production database. Runtime and migration database access are separate protected settings and must never be committed. See the operations repository for release, backup, and recovery procedures.
 ## Lokale Anwendung
 
 ```powershell
@@ -129,11 +14,11 @@ npm install
 npm run dev
 ```
 
-Die Anwendung läuft danach unter http://localhost:3000.
+Die Anwendung lÃ¤uft danach unter http://localhost:3000.
 
 ## Lokaler Datenkatalog
 
-Der Datenkatalog verwendet PostgreSQL in Docker. Die Datenbank enthält aktuelle Kantone und Gemeinden, Quellen, unveränderte Rohsnapshots, importierte Beobachtungen sowie später berechnete Pro-Kopf- und Prozentkennzahlen.
+Der Datenkatalog verwendet PostgreSQL in Docker. Die Datenbank enthÃ¤lt aktuelle Kantone und Gemeinden, Quellen, unverÃ¤nderte Rohsnapshots, importierte Beobachtungen sowie spÃ¤ter berechnete Pro-Kopf- und Prozentkennzahlen.
 
 ### Voraussetzungen
 
@@ -159,52 +44,52 @@ npm run data:municipalities:db
 npm run data:municipality-population:db
 ```
 
-Der Import lädt die offizielle BFS-Arbeitsmappe **T 01.02.03.04**, speichert die unveränderte XLSX-Datei unter `data/raw/`, berechnet einen SHA-256-Hash und importiert ausschließlich den neuesten Datenstand für alle 26 Kantone als `population_total`.
+Der Import lÃ¤dt die offizielle BFS-Arbeitsmappe **T 01.02.03.04**, speichert die unverÃ¤nderte XLSX-Datei unter `data/raw/`, berechnet einen SHA-256-Hash und importiert ausschlieÃŸlich den neuesten Datenstand fÃ¼r alle 26 Kantone als `population_total`.
 
-Der Import ist transaktional und idempotent. Jeder Lauf erhält eine Quelle, einen Snapshot und einen Status in der Datenbank. Ein fehlerhafter Lauf überschreibt keinen zuvor validierten Beobachtungsstand.
+Der Import ist transaktional und idempotent. Jeder Lauf erhÃ¤lt eine Quelle, einen Snapshot und einen Status in der Datenbank. Ein fehlerhafter Lauf Ã¼berschreibt keinen zuvor validierten Beobachtungsstand.
 
 ### Datenstand und Quellen
 
 | Kennzahl | Aktueller Stand | Quelle | Datenbankstatus |
 | --- | --- | --- | --- |
-| Ständige Wohnbevölkerung | BFS-Stand 2024 | BFS STATPOP | Kanton- und Gemeindeimporter vorhanden |
-| Alter und Nationalität | BFS-Stand 2024 | BFS STATPOP | DB-Importer vorhanden |
-| Registrierte Straftaten | BFS-PKS-Stand 2025 | BFS PKS, Tabelle `px-x-1903020100_101` | DB-Importer vorhanden; Rate pro 100'000 mit Bevölkerung 2024 abgeleitet |
-| Personen im Asylverfahren | SEM-Stand 30.06.2026 | SEM Arbeitsmappe `6-10 Bestand im Asylprozess` | Kantonimporter vorhanden; Rate pro 1'000 mit Bevölkerung 2024 abgeleitet |
+| StÃ¤ndige WohnbevÃ¶lkerung | BFS-Stand 2024 | BFS STATPOP | Kanton- und Gemeindeimporter vorhanden |
+| Alter und NationalitÃ¤t | BFS-Stand 2024 | BFS STATPOP | DB-Importer vorhanden |
+| Registrierte Straftaten | BFS-PKS-Stand 2025 | BFS PKS, Tabelle `px-x-1903020100_101` | DB-Importer vorhanden; Rate pro 100'000 mit BevÃ¶lkerung 2024 abgeleitet |
+| Personen im Asylverfahren | SEM-Stand 30.06.2026 | SEM Arbeitsmappe `6-10 Bestand im Asylprozess` | Kantonimporter vorhanden; Rate pro 1'000 mit BevÃ¶lkerung 2024 abgeleitet |
 | Zusammengefasste Geburtenziffer | BFS-Stand 2024 | BFS-Tabelle `su-d-01.04.01.02.07` | Kantonimporter vorhanden |
-| BFS-Erwerbslosenquote | BFS-Stand 2024 | BFS-Tabelle `ts-x-40.02.03.02.03` | 25 veröffentlichte Kantonswerte; Appenzell Innerrhoden nicht veröffentlicht |
-| Politische Orientierung | Finales Wahlresultat 22.10.2023 | BFS, Eidgenössische Wahlen 2023 | 26 kantonale Parteistärken und abgeleiteter Score |
+| BFS-Erwerbslosenquote | BFS-Stand 2024 | BFS-Tabelle `ts-x-40.02.03.02.03` | 25 verÃ¶ffentlichte Kantonswerte; Appenzell Innerrhoden nicht verÃ¶ffentlicht |
+| Politische Orientierung | Finales Wahlresultat 22.10.2023 | BFS, EidgenÃ¶ssische Wahlen 2023 | 26 kantonale ParteistÃ¤rken und abgeleiteter Score |
 | Cultural Enrichment Score | Zusammengesetzter Stand | Lokale Ableitung aus PKS, SEM und BFS | 25 Werte; Appenzell Innerrhoden nicht berechenbar |
 
-Gemeinden werden pro gewähltem Kanton angeboten, sobald ihre aktuelle BFS-Geografie importiert ist. Eine Kennzahl wird auf Gemeindeebene nur gezeigt, wenn die entsprechende amtliche Quelle eine vollständige und vergleichbare Abdeckung liefert.
+Gemeinden werden pro gewÃ¤hltem Kanton angeboten, sobald ihre aktuelle BFS-Geografie importiert ist. Eine Kennzahl wird auf Gemeindeebene nur gezeigt, wenn die entsprechende amtliche Quelle eine vollstÃ¤ndige und vergleichbare Abdeckung liefert.
 
 ## Gemeinde-Abstimmungen
 
-Ein Klick auf einen Kanton fixiert dessen Detailkarte. Von dort öffnen **Gemeinde-Abstimmungen** die Gemeindeansicht und **Politischer Kompass** den kantonalen Kompass. Die Gemeindeansicht zeigt die Resultate aller eidgenössischen Vorlagen der letzten vier Abstimmungstage auf Gemeindeebene; eine fixierte Gemeinde-Karte bietet ebenfalls den politischen Kompass mit allen Schweizer Gemeinden. Beim Überfahren einer Gemeinde erscheint eine Ergebnis-Karte; ein Klick oder Enter/Leertaste pinnt sie. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behält ihre demografischen Kennzahlen.
+Ein Klick auf einen Kanton fixiert dessen Detailkarte. Von dort Ã¶ffnen **Gemeinde-Abstimmungen** die Gemeindeansicht und **Politischer Kompass** den kantonalen Kompass. Die Gemeindeansicht zeigt die Resultate aller eidgenÃ¶ssischen Vorlagen der letzten vier Abstimmungstage auf Gemeindeebene; eine fixierte Gemeinde-Karte bietet ebenfalls den politischen Kompass mit allen Schweizer Gemeinden. Beim Ãœberfahren einer Gemeinde erscheint eine Ergebnis-Karte; ein Klick oder Enter/Leertaste pinnt sie. Sie verwendet die politischen BFS-Gemeindegeometrien und die offiziellen BFS/voteinfo-Resultate; die Kantonsansicht behÃ¤lt ihre demografischen Kennzahlen.
 
-Die statischen Daten werden bewusst server-/buildseitig aktualisiert, weil die BFS-Abstimmungsdaten nicht als browserübergreifend CORS-fähige API vorausgesetzt werden können:
+Die statischen Daten werden bewusst server-/buildseitig aktualisiert, weil die BFS-Abstimmungsdaten nicht als browserÃ¼bergreifend CORS-fÃ¤hige API vorausgesetzt werden kÃ¶nnen:
 
 ```bash
 npm run data:votes
 ```
 
-Die aktuelle Auswahl umfasst den 14.06.2026, 08.03.2026, 30.11.2025 und 28.09.2025. Resultate, die BFS noch als provisorisch kennzeichnet, werden in der Oberfläche entsprechend markiert. Die 12 Auslandsgemeinden ohne räumliche BFS-Geometrie erscheinen nicht auf der Karte.
+Die aktuelle Auswahl umfasst den 14.06.2026, 08.03.2026, 30.11.2025 und 28.09.2025. Resultate, die BFS noch als provisorisch kennzeichnet, werden in der OberflÃ¤che entsprechend markiert. Die 12 Auslandsgemeinden ohne rÃ¤umliche BFS-Geometrie erscheinen nicht auf der Karte.
 
 ## Politischer Kompass
 
-`npm run data:votes` lädt die amtlichen JSON-Ergebnisse von [BFS voteinfo](https://www.bfs.admin.ch/bfs/de/home/dienstleistungen/geostat/geodaten-statistik-bundesamt/abstimmungen.html) und erzeugt zusätzlich `public/data/political-compass.json`. Der Snapshot enthält nur aktuelle räumliche BFS-Gemeinde-IDs: historische oder fusionierte Gemeinden werden nicht auf heutige Gemeinden übertragen. Fehlt für eine aktuelle Gemeinde eines der neun aktiven Resultate, wird keine Position geschätzt oder erfunden; die fehlende ID bleibt im Snapshot dokumentiert.
+`npm run data:votes` lÃ¤dt die amtlichen JSON-Ergebnisse von [BFS voteinfo](https://www.bfs.admin.ch/bfs/de/home/dienstleistungen/geostat/geodaten-statistik-bundesamt/abstimmungen.html) und erzeugt zusÃ¤tzlich `public/data/political-compass.json`. Der Snapshot enthÃ¤lt nur aktuelle rÃ¤umliche BFS-Gemeinde-IDs: historische oder fusionierte Gemeinden werden nicht auf heutige Gemeinden Ã¼bertragen. Fehlt fÃ¼r eine aktuelle Gemeinde eines der neun aktiven Resultate, wird keine Position geschÃ¤tzt oder erfunden; die fehlende ID bleibt im Snapshot dokumentiert.
 
-Für jede aktive Vorlage wird mit den exakten Ja-Prozenten gerechnet:
+FÃ¼r jede aktive Vorlage wird mit den exakten Ja-Prozenten gerechnet:
 
 $$
 \Delta(g,v) = \operatorname{clamp}_{[-3,3]}\left(\frac{Ja(g,v)-Ja(CH,v)}{\sigma_v}\right)
 $$
 
-Dabei ist $\sigma_v$ die Populations-Standardabweichung der Gemeinde-Jaanteile dieser Vorlage. Die gewichteten Summen bilden die Achsen $x$ (wirtschaftlich links $\leftrightarrow$ rechts) und $y$ (libertär $\leftrightarrow$ autoritär). Beide werden über die feste theoretische Spanne $3 \times \sum |Gewicht|$ auf $[-100,100]$ skaliert. Kantonswerte entstehen für jede Vorlage aus der Summe von Ja- und Nein-Stimmen ihrer aktuellen kartierten Gemeinden; sie benutzen danach dieselben Schweizer Referenzen und Gemeinde-Standardabweichungen.
+Dabei ist $\sigma_v$ die Populations-Standardabweichung der Gemeinde-Jaanteile dieser Vorlage. Die gewichteten Summen bilden die Achsen $x$ (wirtschaftlich links $\leftrightarrow$ rechts) und $y$ (libertÃ¤r $\leftrightarrow$ autoritÃ¤r). Beide werden Ã¼ber die feste theoretische Spanne $3 \times \sum |Gewicht|$ auf $[-100,100]$ skaliert. Kantonswerte entstehen fÃ¼r jede Vorlage aus der Summe von Ja- und Nein-Stimmen ihrer aktuellen kartierten Gemeinden; sie benutzen danach dieselben Schweizer Referenzen und Gemeinde-Standardabweichungen.
 
-Aktiv sind: Zweitliegenschaftssteuer-Reform (6780), E-ID-Gesetz (6790), Initiative für eine Zukunft (6810), Bargeld-Initiative (6821), SRG-Initiative (6830), Klimafonds-Initiative (6840), Individualbesteuerung (6850), Nachhaltigkeitsinitiative (6860) und Zivildienstgesetz (6870). Service citoyen (6800), Bargeld-Gegenvorschlag (6822) und Stichfrage (6823) zählen bewusst nicht. Alle Gewichte und die nationalen Referenzwerte stehen im generierten Snapshot sowie hinter dem Info-Knopf des Modals. Die Anzeige ist ein relatives Modell der Abstimmungsabweichungen und keine objektive Einordnung von Gemeinden, Kantonen oder Menschen.
+Aktiv sind: Zweitliegenschaftssteuer-Reform (6780), E-ID-Gesetz (6790), Initiative fÃ¼r eine Zukunft (6810), Bargeld-Initiative (6821), SRG-Initiative (6830), Klimafonds-Initiative (6840), Individualbesteuerung (6850), Nachhaltigkeitsinitiative (6860) und Zivildienstgesetz (6870). Service citoyen (6800), Bargeld-Gegenvorschlag (6822) und Stichfrage (6823) zÃ¤hlen bewusst nicht. Alle Gewichte und die nationalen Referenzwerte stehen im generierten Snapshot sowie hinter dem Info-Knopf des Modals. Die Anzeige ist ein relatives Modell der Abstimmungsabweichungen und keine objektive Einordnung von Gemeinden, Kantonen oder Menschen.
 
-## Nützliche Befehle
+## NÃ¼tzliche Befehle
 
 ```powershell
 npm run lint
@@ -227,34 +112,35 @@ npm run data:votes
 npm run test:political-compass
 ```
 
-Der letzte Befehl erzeugt weiterhin die bisherige statische Explorer-JSON-Datei als Demo-Cache. Der Explorer verwendet sie nicht mehr: Zur Laufzeit fragt er ausschließlich die lokale Route `/api/catalog` und damit PostgreSQL ab.
+Der letzte Befehl erzeugt weiterhin die bisherige statische Explorer-JSON-Datei als Demo-Cache. Der Explorer verwendet sie nicht mehr: Zur Laufzeit fragt er ausschlieÃŸlich die lokale Route `/api/catalog` und damit PostgreSQL ab.
 
-Die Gemeindeauswahl wird aus der aktuellen BFS-Gemeindegliederung aufgebaut. Zuerst `data:municipalities:db`, danach `data:municipality-population:db` ausführen. Gemeinden ohne landesweit vergleichbare, importierte Kennzahl bleiben im Explorer ausdrücklich als nicht verfügbar markiert; es gibt keinen Rückfall auf den Kantonswert.
+Die Gemeindeauswahl wird aus der aktuellen BFS-Gemeindegliederung aufgebaut. Zuerst `data:municipalities:db`, danach `data:municipality-population:db` ausfÃ¼hren. Gemeinden ohne landesweit vergleichbare, importierte Kennzahl bleiben im Explorer ausdrÃ¼cklich als nicht verfÃ¼gbar markiert; es gibt keinen RÃ¼ckfall auf den Kantonswert.
 
-Der PKS-Importer speichert drei BFS-Aggregate: Straftaten total, Straftaten gegen Leib und Leben sowie Vermögensdelikte. PKS misst registrierte Straftaten, nicht Verurteilungen. Die Kennzahl pro 100'000 Einwohner wird aus PKS 2025 und dem neuesten lokalen Bevölkerungsstand 2024 abgeleitet; beide Datenstände stehen in der Berechnungsdefinition.
+Der PKS-Importer speichert drei BFS-Aggregate: Straftaten total, Straftaten gegen Leib und Leben sowie VermÃ¶gensdelikte. PKS misst registrierte Straftaten, nicht Verurteilungen. Die Kennzahl pro 100'000 Einwohner wird aus PKS 2025 und dem neuesten lokalen BevÃ¶lkerungsstand 2024 abgeleitet; beide DatenstÃ¤nde stehen in der Berechnungsdefinition.
 
-Der Asylimporter liest die offizielle monatliche SEM-Arbeitsmappe `6-10 Bestand im Asylprozess`. Er importiert für jeden Kanton die Kategorie `Personen im Verfahrensprozess`; sie ist enger als der gesamte Bestand von Personen mit Status N, S oder F und darf nicht damit gleichgesetzt werden. Die Rate pro 1'000 Einwohner nutzt den neuesten lokalen Bevölkerungsstand 2024 und dokumentiert den abweichenden Stichtag ebenfalls in der Berechnungsdefinition.
+Der Asylimporter liest die offizielle monatliche SEM-Arbeitsmappe `6-10 Bestand im Asylprozess`. Er importiert fÃ¼r jeden Kanton die Kategorie `Personen im Verfahrensprozess`; sie ist enger als der gesamte Bestand von Personen mit Status N, S oder F und darf nicht damit gleichgesetzt werden. Die Rate pro 1'000 Einwohner nutzt den neuesten lokalen BevÃ¶lkerungsstand 2024 und dokumentiert den abweichenden Stichtag ebenfalls in der Berechnungsdefinition.
 
-Der Fertilitätsimporter lädt die BFS-Tabelle `su-d-01.04.01.02.07` und importiert die zusammengefasste Geburtenziffer je Kanton. Sie ist ein Periodenindikator, nicht die tatsächliche Kinderzahl einer Kohorte.
+Der FertilitÃ¤tsimporter lÃ¤dt die BFS-Tabelle `su-d-01.04.01.02.07` und importiert die zusammengefasste Geburtenziffer je Kanton. Sie ist ein Periodenindikator, nicht die tatsÃ¤chliche Kinderzahl einer Kohorte.
 
-Der Erwerbslosenimporter lädt die BFS-Tabelle `ts-x-40.02.03.02.03`. Die BFS-Erwerbslosenquote folgt der ILO-Definition und misst Erwerbslose im Verhältnis zu den Erwerbspersonen. Sie ist nicht mit der monatlichen SECO-Quote registrierter Arbeitsloser gleichzusetzen. Für 2024 ist der Wert für Appenzell Innerrhoden in der BFS-Rohdatei unterdrückt und wird daher weder geschätzt noch durch einen anderen Wert ersetzt.
+Der Erwerbslosenimporter lÃ¤dt die BFS-Tabelle `ts-x-40.02.03.02.03`. Die BFS-Erwerbslosenquote folgt der ILO-Definition und misst Erwerbslose im VerhÃ¤ltnis zu den Erwerbspersonen. Sie ist nicht mit der monatlichen SECO-Quote registrierter Arbeitsloser gleichzusetzen. FÃ¼r 2024 ist der Wert fÃ¼r Appenzell Innerrhoden in der BFS-Rohdatei unterdrÃ¼ckt und wird daher weder geschÃ¤tzt noch durch einen anderen Wert ersetzt.
 
-Der Wahlimporter lädt die finalen kantonalen Parteistärken der Nationalratswahl vom 22. Oktober 2023 aus der BFS-Wahlressource. Der Score verwendet `SP`, `GPS`, `Mitte`, `GLP`, `FDP` und `SVP`:
+Der Wahlimporter lÃ¤dt die finalen kantonalen ParteistÃ¤rken der Nationalratswahl vom 22. Oktober 2023 aus der BFS-Wahlressource. Der Score verwendet `SP`, `GPS`, `Mitte`, `GLP`, `FDP` und `SVP`:
 
 $$
 S = \frac{SVP + 0.5 \cdot FDP + 0.5 \cdot GLP - 0.5 \cdot GPS - SP}{SVP + FDP + GLP + Mitte + GPS + SP} - S_{CH}
 $$
 
-`Mitte` zählt nur im Nenner. $S_{CH} = 0.170624250654$ ist der aus den finalen Schweizer Parteistärken der BFS-Wahlressource berechnete nationale Referenzscore. Damit entspricht $0$ der Schweizer Mitte dieses Wahlresultats, nicht einer rein theoretischen Gleichverteilung der sechs Parteien. Parteien ohne kantonale Liste in der finalen BFS-Datei werden explizit als $0\,\%$ gespeichert; andere Parteien fliessen nicht in den Score ein. Die Karte nutzt dafür den festen Bereich $[-1, 1]$. Der Score beschreibt ausschliesslich dieses Wahlergebnis und weder Parteibindung noch Sicherheitsgefühl.
+`Mitte` zÃ¤hlt nur im Nenner. $S_{CH} = 0.170624250654$ ist der aus den finalen Schweizer ParteistÃ¤rken der BFS-Wahlressource berechnete nationale Referenzscore. Damit entspricht $0$ der Schweizer Mitte dieses Wahlresultats, nicht einer rein theoretischen Gleichverteilung der sechs Parteien. Parteien ohne kantonale Liste in der finalen BFS-Datei werden explizit als $0\,\%$ gespeichert; andere Parteien fliessen nicht in den Score ein. Die Karte nutzt dafÃ¼r den festen Bereich $[-1, 1]$. Der Score beschreibt ausschliesslich dieses Wahlergebnis und weder Parteibindung noch SicherheitsgefÃ¼hl.
 
 ## Cultural Enrichment Score
 
-Der Cultural Enrichment Score ist kein amtlicher Indikator und keine normative Bewertung eines Kantons. Er kombiniert vier verfügbare Kennzahlen mit je $25\,\%$: registrierte Straftaten pro 100'000 Einwohner (PKS 2025), offene Asylverfahren pro 1'000 Einwohner (SEM, 30.06.2026), ausländische Bevölkerung (BFS, 2024) und BFS-Erwerbslosenquote (2024). Die Datenstände sind unterschiedlich und werden nicht als kausale Beziehung interpretiert.
+Der Cultural Enrichment Score ist kein amtlicher Indikator und keine normative Bewertung eines Kantons. Er kombiniert vier verfÃ¼gbare Kennzahlen mit je $25\,\%$: registrierte Straftaten pro 100'000 Einwohner (PKS 2025), offene Asylverfahren pro 1'000 Einwohner (SEM, 30.06.2026), auslÃ¤ndische BevÃ¶lkerung (BFS, 2024) und BFS-Erwerbslosenquote (2024). Die DatenstÃ¤nde sind unterschiedlich und werden nicht als kausale Beziehung interpretiert.
 
-Jede Komponente wird über alle Kantone mit vollständigen Werten min-max-normalisiert. Der Score ist ihre gleich gewichtete Summe auf der Skala $[0, 100]$:
+Jede Komponente wird Ã¼ber alle Kantone mit vollstÃ¤ndigen Werten min-max-normalisiert. Der Score ist ihre gleich gewichtete Summe auf der Skala $[0, 100]$:
 
 $$
-CES = 25 \cdot \left(n(Kriminalität) + n(Asylverfahren) + n(Ausländische\ Bevölkerung) + n(Erwerbslosenquote)\right)
+CES = 25 \cdot \left(n(KriminalitÃ¤t) + n(Asylverfahren) + n(AuslÃ¤ndische\ BevÃ¶lkerung) + n(Erwerbslosenquote)\right)
 $$
 
-Höhere Werte bedeuten ausschliesslich höhere normierte Werte dieser vier Eingangsgrössen. Für Appenzell Innerrhoden wird kein Wert geschätzt oder ersetzt: BFS veröffentlicht für 2024 keine Erwerbslosenquote, daher bleibt der Score nicht verfügbar.
+HÃ¶here Werte bedeuten ausschliesslich hÃ¶here normierte Werte dieser vier EingangsgrÃ¶ssen. FÃ¼r Appenzell Innerrhoden wird kein Wert geschÃ¤tzt oder ersetzt: BFS verÃ¶ffentlicht fÃ¼r 2024 keine Erwerbslosenquote, daher bleibt der Score nicht verfÃ¼gbar.
+
