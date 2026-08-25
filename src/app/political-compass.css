@@ -49,8 +49,12 @@
 .compass-plot__axis--right { grid-area: 2 / 3; writing-mode: vertical-rl; }
 .compass-chart { display: block; grid-area: 2 / 2; width: auto; max-width: 100%; height: min(calc(100dvh - 370px), 560px); aspect-ratio: 1; overflow: hidden; touch-action: none; user-select: none; }
 .compass-chart:active { cursor: grabbing; }
-.compass-reset { display: grid; grid-area: 2 / 2; align-self: start; justify-self: end; z-index: 1; width: 30px; height: 30px; margin: 8px; place-items: center; border: 1px solid #cfd8df; border-radius: 2px; background: rgb(255 255 255 / .94); color: #65161d; box-shadow: 0 1px 4px rgb(23 42 58 / .14); }
-.compass-reset:hover, .compass-reset:focus-visible { border-color: #65161d; background: #65161d; color: #fff; outline: none; }
+.compass-controls { display: flex; grid-area: 2 / 2; align-self: start; justify-self: end; z-index: 1; margin: 8px; overflow: hidden; border: 1px solid #cfd8df; border-radius: 2px; background: rgb(255 255 255 / .94); color: #65161d; box-shadow: 0 1px 4px rgb(23 42 58 / .14); }
+.compass-controls button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-left: 1px solid #dce4e8; background: transparent; color: inherit; }
+.compass-controls button:first-child { border-left: 0; }
+.compass-controls button:hover:not(:disabled), .compass-controls button:focus-visible { background: #65161d; color: #fff; outline: none; }
+.compass-controls button:disabled { color: #aeb8bf; cursor: not-allowed; }
+.compass-controls__level { display: grid; min-width: 45px; place-items: center; border-left: 1px solid #dce4e8; color: #46535d; font-size: 10px; font-variant-numeric: tabular-nums; font-weight: 750; }
 
 .compass-quadrant { stroke: #ffffff; stroke-width: 1; }
 .compass-quadrant--authoritarian-left { fill: hsl(356 55% 93%); }
@@ -97,4 +101,8 @@
   .compass-method { padding: 12px; }
   .compass-chart { height: min(calc(100dvh - 300px), 52dvh); }
   .compass-plot__axis { font-size: 10px; }
+  .compass-controls button { width: 38px; height: 38px; }
+  .compass-controls__level { min-width: 42px; }
+  .compass-point--cantons { r: 10px; }
+  .compass-point--municipalities { r: 6.5px; stroke-width: 1.1; opacity: .9; }
 }
