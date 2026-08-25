@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, BookOpen, Calculator, ChevronDown, Languages, Map as MapIcon, X } from "lucide-react";
+import { ArrowDown, BookOpen, Calculator, ChevronDown, Heart, Languages, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
@@ -16,6 +16,7 @@ const cardWidth = 340;
 const hoverDelay = 110;
 const balancedPoliticalScoreThreshold = 0.025;
 const strongPoliticalScoreThreshold = 0.1;
+const githubSponsorsUrl = "https://github.com/sponsors/Merkelmore?metadata_campaign=politik-kompass";
 
 type Metric = CantonCardResponse["metrics"][number];
 type CategoryCode = "population_total" | "crime_per_100000" | "asylum_pending_per_1000" | "population_foreign_percent" | "fertility_tfr" | "unemployment_rate" | "political_orientation_score" | "cultural_enrichment_score";
@@ -242,7 +243,7 @@ function CatalogExplorerContent() {
         <div className="site-header__actions"><button className="methodology-trigger" type="button" onClick={() => setMunicipalityCanton(null)}><MapIcon size={15} />{t("backToCantonMap")}</button><LanguageSwitcher language={language} setLanguage={setLanguage} t={t} /></div>
       </header>
       <MunicipalityVoteExplorer cantonCode={municipalityCanton} key={municipalityCanton} onBack={() => setMunicipalityCanton(null)} />
-      <footer className="site-footer"><span>BFS · {t("municipalVoteResults")}</span><span>2026</span></footer>
+      <footer className="site-footer"><span>BFS · {t("municipalVoteResults")}</span><a className="site-footer__support" href={githubSponsorsUrl} rel="noreferrer" target="_blank"><Heart aria-hidden="true" size={13} />{t("supportProject")}</a><span>2026</span></footer>
     </div>;
   }
 
@@ -291,7 +292,7 @@ function CatalogExplorerContent() {
           </>}
         </aside>}
       </main>
-      <footer className="site-footer"><span>{t("mainFooter")}</span><span>2026</span></footer>
+      <footer className="site-footer"><span>{t("mainFooter")}</span><a className="site-footer__support" href={githubSponsorsUrl} rel="noreferrer" target="_blank"><Heart aria-hidden="true" size={13} />{t("supportProject")}</a><span>2026</span></footer>
       {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("sourcesKicker")}</span><h2 id="sources-title">{t("sourcesTitle")}</h2></div><button type="button" aria-label={t("closeSources")} onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">{t("sourcesLoading")}</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{categories.find((category) => category.code === source.metricCode)?.label ?? source.metric}</strong><span>{source.title}{source.referenceDate ? ` · ${t("asOf", { date: source.referenceDate })}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{t("openSource")}</a> : <span className="sources-list__local">{t("localCalculation")}</span>}</li>)}</ul>}</section></div>}
       {isMethodologyOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsMethodologyOpen(false)}><section className="methodology-dialog" role="dialog" aria-modal="true" aria-labelledby="methodology-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("methodology")}</span><h2 id="methodology-title">{t("cesTitle")}</h2></div><button type="button" aria-label={t("closeMethodology")} onClick={() => setIsMethodologyOpen(false)}><X size={18} /></button></div><p>{t("cesText")}</p><p className="methodology-formula">{t("cesFormula")}</p><ul><li>{t("cesCrime")}</li><li>{t("cesAsylum")}</li><li>{t("cesForeign")}</li><li>{t("cesUnemployment")}</li></ul><p>{t("cesMissing")}</p></section></div>}
       {compassMode && <PoliticalCompassModal mode={compassMode} onClose={() => setCompassMode(null)} />}
