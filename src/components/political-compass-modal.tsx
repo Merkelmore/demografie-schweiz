@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, RotateCcw, X } from "lucide-react";
+import { Info, RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useMemo, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { cantons } from "@/lib/cantons";
@@ -32,6 +32,8 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
   const dialog = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const drag = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | undefined>(undefined);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number } | undefined>(undefined);
   const { data, error } = usePoliticalCompass();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => initialCantonCode ? new Set(cantons.filter(({ code }) => code !== initialCantonCode).map(({ code }) => code)) : new Set());
   const [hovered, setHovered] = useState<CompassPoint>();
@@ -74,6 +76,12 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
     setZoom(1);
   }
 
+  function setViewZoom(nextZoom: number) {
+    const clampedZoom = Math.max(1, Math.min(8, nextZoom));
+    setZoom(clampedZoom);
+    setPan((current) => clampPan(current, clampedZoom));
+  }
+
   function toggleCanton(code: string) {
     setHidden((current) => {
       const next = new Set(current);
@@ -111,6 +119,44 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
     return { x: Math.max(-limit, Math.min(limit, next.x)), y: Math.max(-limit, Math.min(limit, next.y)) };
   }
 
+  function beginPointerGesture(event: React.PointerEvent<SVGSVGElement>) {
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const activePointers = [...pointers.current.values()];
+
+    if (activePointers.length === 1) {
+      drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: pan.x, originY: pan.y };
+      pinch.current = undefined;
+    } else if (activePointers.length === 2) {
+      pinch.current = { distance: Math.hypot(activePointers[0].x - activePointers[1].x, activePointers[0].y - activePointers[1].y), zoom };
+      drag.current = undefined;
+    }
+  }
+
+  function continuePointerGesture(event: React.PointerEvent<SVGSVGElement>) {
+    if (!pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const activePointers = [...pointers.current.values()];
+
+    if (activePointers.length === 2 && pinch.current) {
+      const distance = Math.hypot(activePointers[0].x - activePointers[1].x, activePointers[0].y - activePointers[1].y);
+      if (pinch.current.distance > 0) setViewZoom(pinch.current.zoom * distance / pinch.current.distance);
+      return;
+    }
+
+    if (!drag.current || drag.current.pointerId !== event.pointerId) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const factor = compassChart.size / bounds.width;
+    setPan(clampPan({ x: drag.current.originX + (event.clientX - drag.current.x) * factor, y: drag.current.originY + (event.clientY - drag.current.y) * factor }));
+  }
+
+  function endPointerGesture(event: React.PointerEvent<SVGSVGElement>) {
+    pointers.current.delete(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    drag.current = undefined;
+    pinch.current = undefined;
+  }
+
   return <div className="compass-backdrop" role="presentation" onMouseDown={onClose}>
     <section ref={dialog} className="compass-dialog" role="dialog" aria-modal="true" aria-labelledby="compass-title" onKeyDown={keepFocusInDialog} onMouseDown={(event) => event.stopPropagation()}>
       <header className="compass-dialog__header">
@@ -139,7 +185,7 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
           <div className="compass-plot">
           <span className="compass-plot__axis compass-plot__axis--top">{t("authoritarian")}</span>
           <span className="compass-plot__axis compass-plot__axis--left">{t("left")}</span>
-          <svg className="compass-chart" viewBox={`0 0 ${compassChart.size} ${compassChart.size}`} role="img" aria-label={`${title} mit ${visiblePoints.length} Punkten`} onWheel={(event) => { event.preventDefault(); const nextZoom = Math.max(1, Math.min(8, zoom * (event.deltaY < 0 ? 1.18 : 0.85))); setZoom(nextZoom); setPan(clampPan(pan, nextZoom)); }} onPointerDown={(event) => { drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX: pan.x, originY: pan.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { if (!drag.current || drag.current.pointerId !== event.pointerId) return; const bounds = event.currentTarget.getBoundingClientRect(); const factor = compassChart.size / bounds.width; setPan(clampPan({ x: drag.current.originX + (event.clientX - drag.current.x) * factor, y: drag.current.originY + (event.clientY - drag.current.y) * factor })); }} onPointerUp={(event) => { if (drag.current?.pointerId === event.pointerId) drag.current = undefined; }}>
+          <svg className="compass-chart" viewBox={`0 0 ${compassChart.size} ${compassChart.size}`} role="img" aria-label={`${title} mit ${visiblePoints.length} Punkten`} onWheel={(event) => { event.preventDefault(); setViewZoom(zoom * (event.deltaY < 0 ? 1.18 : 0.85)); }} onPointerDown={beginPointerGesture} onPointerMove={continuePointerGesture} onPointerUp={endPointerGesture} onPointerCancel={endPointerGesture}>
             <g transform={`translate(${pan.x} ${pan.y}) translate(${compassChart.center} ${compassChart.center}) scale(${zoom}) translate(${-compassChart.center} ${-compassChart.center})`}>
               <rect className="compass-quadrant compass-quadrant--authoritarian-left" x={quadrant.origin} y={quadrant.origin} width={quadrant.side} height={quadrant.side} />
               <rect className="compass-quadrant compass-quadrant--authoritarian-right" x={compassChart.center} y={quadrant.origin} width={quadrant.side} height={quadrant.side} />
@@ -152,7 +198,12 @@ export function PoliticalCompassModal({ mode, onClose, originMunicipalityId, ini
               {hovered && <CompassLabel position={toChartPoint(hovered, spread)} text={hovered.cantonName ? `${hovered.name} · ${hovered.cantonName}` : hovered.name} tone="hovered" zoom={zoom} />}
             </g>
           </svg>
-          <button className="compass-reset" type="button" aria-label={t("resetCompass")} title={t("resetView")} onClick={resetView}><RotateCcw size={15} /></button>
+          <div className="compass-controls" role="group" aria-label={t("compassZoomControls")}>
+            <button type="button" aria-label={t("zoomOutCompass")} title={t("zoomOutCompass")} disabled={zoom <= 1} onClick={() => setViewZoom(zoom / 1.4)}><ZoomOut size={16} /></button>
+            <span className="compass-controls__level" aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button type="button" aria-label={t("zoomInCompass")} title={t("zoomInCompass")} disabled={zoom >= 8} onClick={() => setViewZoom(zoom * 1.4)}><ZoomIn size={16} /></button>
+            <button type="button" aria-label={t("resetCompass")} title={t("resetView")} disabled={zoom === 1 && pan.x === 0 && pan.y === 0} onClick={resetView}><RotateCcw size={15} /></button>
+          </div>
           <span className="compass-plot__axis compass-plot__axis--right">{t("right")}</span>
           <span className="compass-plot__axis compass-plot__axis--bottom">{t("libertarian")}</span>
           </div>
