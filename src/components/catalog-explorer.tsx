@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, BookOpen, Calculator, ChevronDown, Heart, Languages, Map as MapIcon, X } from "lucide-react";
+import { ArrowDown, BookOpen, ChevronDown, Heart, Languages, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
@@ -61,7 +61,6 @@ function CatalogExplorerContent() {
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const [pinnedCode, setPinnedCode] = useState<string | null>(null);
   const [compassMode, setCompassMode] = useState<"cantons" | null>(null);
-  const [isMethodologyOpen, setIsMethodologyOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [sources, setSources] = useState<Source[]>();
   const [sourcesError, setSourcesError] = useState<string>();
@@ -257,7 +256,7 @@ function CatalogExplorerContent() {
         </div>
         <div className="site-header__actions">
           <button className="methodology-trigger" type="button" onClick={() => setIsSourcesOpen(true)}><BookOpen size={15} />{t("sources")}</button>
-          <button className="methodology-trigger" type="button" onClick={() => setIsMethodologyOpen(true)}><Calculator size={15} />{t("cesMethodology")}</button><LanguageSwitcher language={language} setLanguage={setLanguage} t={t} />
+          <LanguageSwitcher language={language} setLanguage={setLanguage} t={t} />
         </div>
       </header>
       <main className="map-explorer" aria-label={t("cantonMapAria")}>
@@ -283,8 +282,6 @@ function CatalogExplorerContent() {
             <dl className="hover-card__facts">
               <div><dt>{t("population")}</dt><dd>{formatMetric(metrics.get("population_total"), language, t("unavailable"))}</dd></div>
               <div><dt>{t("crime")}</dt><dd>{formatMetric(metrics.get("crime_per_100000"), language, t("unavailable"))}</dd></div>
-              <div><dt>{t("asylum")}</dt><dd>{formatMetric(metrics.get("asylum_pending_per_1000"), language, t("unavailable"))}</dd></div>
-              <div><dt>{t("foreignPopulation")}</dt><dd>{formatMetric(metrics.get("population_foreign_percent"), language, t("unavailable"))}</dd></div>
               <div><dt>{t("fertility")}</dt><dd>{formatMetric(metrics.get("fertility_tfr"), language, t("unavailable"))}</dd></div>
               <div><dt>{t("unemployment")}</dt><dd>{formatMetric(metrics.get("unemployment_rate"), language, t("unavailable"))}</dd></div>
               <div><dt>{t("politicalTendency")} {card?.election.referenceDate ? `(${card.election.referenceDate.slice(0, 4)})` : ""}</dt><dd>{formatPoliticalTendency(metrics.get("political_orientation_score"), language, t("unavailable"), tendencyLabels)}</dd></div>
@@ -294,7 +291,6 @@ function CatalogExplorerContent() {
       </main>
       <footer className="site-footer"><span>{t("mainFooter")}</span><a className="site-footer__support" href={githubSponsorsUrl} rel="noreferrer" target="_blank"><Heart aria-hidden="true" size={13} />{t("supportProject")}</a><span>2026</span></footer>
       {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("sourcesKicker")}</span><h2 id="sources-title">{t("sourcesTitle")}</h2></div><button type="button" aria-label={t("closeSources")} onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">{t("sourcesLoading")}</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{categories.find((category) => category.code === source.metricCode)?.label ?? source.metric}</strong><span>{source.title}{source.referenceDate ? ` · ${t("asOf", { date: source.referenceDate })}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{t("openSource")}</a> : <span className="sources-list__local">{t("localCalculation")}</span>}</li>)}</ul>}</section></div>}
-      {isMethodologyOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsMethodologyOpen(false)}><section className="methodology-dialog" role="dialog" aria-modal="true" aria-labelledby="methodology-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("methodology")}</span><h2 id="methodology-title">{t("cesTitle")}</h2></div><button type="button" aria-label={t("closeMethodology")} onClick={() => setIsMethodologyOpen(false)}><X size={18} /></button></div><p>{t("cesText")}</p><p className="methodology-formula">{t("cesFormula")}</p><ul><li>{t("cesCrime")}</li><li>{t("cesAsylum")}</li><li>{t("cesForeign")}</li><li>{t("cesUnemployment")}</li></ul><p>{t("cesMissing")}</p></section></div>}
       {compassMode && <PoliticalCompassModal mode={compassMode} onClose={() => setCompassMode(null)} />}
     </div>
   );
