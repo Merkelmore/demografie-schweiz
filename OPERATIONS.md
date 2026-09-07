@@ -8,6 +8,9 @@
 - Deployment: reviewed Git revision built with `docker-compose.production.yml`
 - Public gateway: the shared Caddy service from the private `production-operations` repository
 
+The application container is limited to 1 GiB RAM, one CPU and 256 processes.
+It runs as an unprivileged user with a read-only filesystem and dropped capabilities.
+
 ## Secrets
 
 The runtime database connection is stored only in
