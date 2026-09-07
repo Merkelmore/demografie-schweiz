@@ -1,0 +1,49 @@
+/* Canton map frame and spacing only. */
+.map-explorer {
+  padding: clamp(20px, 3vw, 48px);
+}
+
+.map-hero {
+  width: min(100%, 1440px);
+  gap: 18px;
+}
+
+.map-nudge { margin: 0; }
+
+.map-canvas--full {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(12px, 2.2vw, 36px);
+  border: 1px solid #e1e4e2;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 4px 6px rgb(25 43 39 / .02), 0 20px 60px rgb(25 43 39 / .04);
+}
+
+.map-canvas--full > .map-zoom-viewport {
+  width: 100%;
+  height: auto;
+  max-height: min(66dvh, max(220px, calc(100dvh - 340px)));
+  aspect-ratio: 800 / 560;
+  border: 0;
+  border-radius: 12px;
+  background: radial-gradient(#dfe4df .7px, transparent .7px) 0 0 / 18px 18px, #fbfcfa;
+}
+
+.map-canvas--full .map-zoom-viewport > svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 1000px) {
+  .map-explorer { padding: 24px 20px; }
+}
+
+@media (max-width: 640px) {
+  .map-explorer { padding: 20px 12px 28px; }
+  .map-hero { gap: 16px; }
+  .map-canvas--full { padding: 8px; border-radius: 16px; }
+  .map-canvas--full > .map-zoom-viewport { max-height: none; }
+}
