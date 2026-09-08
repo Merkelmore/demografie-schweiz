@@ -1,15 +1,17 @@
 "use client";
 
 import { ArrowDown, BookOpen, ChevronDown, Heart, Languages, Map as MapIcon, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SwissCantonMap } from "@/components/swiss-canton-map";
 import { MunicipalityVoteExplorer } from "@/components/municipality-vote-explorer";
 import { PoliticalCompassModal } from "@/components/political-compass-modal";
+import { CompassMiniature } from "@/components/compass-miniature";
 import type { CantonCardResponse, CatalogResponse, MapResponse } from "@/lib/catalog";
 import { getCanton } from "@/lib/cantons";
 import { formattingLocale, LanguageProvider, locales, useTranslation } from "@/lib/i18n";
 import { useHoverCardPlacement } from "@/lib/use-hover-card";
+import { compassSpread, usePoliticalCompass } from "@/lib/political-compass";
 
 const cardCacheTtl = 5 * 60 * 1000;
 const cardWidth = 340;
@@ -73,6 +75,9 @@ function CatalogExplorerContent() {
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { cardRef, place, style: cardStyle } = useHoverCardPlacement(cardWidth);
   const activeCode = pinnedCode ?? hoveredCode;
+  const compass = usePoliticalCompass();
+  const spread = useMemo(() => compassSpread(compass.data?.cantons ?? []), [compass.data]);
+  const selectedPoint = compass.data?.cantons.find((point) => point.code === activeCode);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -271,14 +276,20 @@ function CatalogExplorerContent() {
           <div className="hover-card__header">
             <div className="hover-card__identity">
               <h1>{selectedCantonName ?? card?.selectedGeo.name ?? t("loading")}</h1>
-              {pinnedCode && <div className="hover-card__quick-actions"><button type="button" onClick={openMunicipalityVotes}>{t("municipalityLevel")}</button><button type="button" onClick={() => setCompassMode("cantons")}>{t("politicalCompass")}</button></div>}
+              {pinnedCode && <div className="hover-card__quick-actions"><button type="button" onClick={openMunicipalityVotes}>{t("municipalityLevel")}</button></div>}
             </div>
             {pinnedCode && <button type="button" aria-label={t("closeCanton")} onClick={closeCantonCard}><X size={16} /></button>}
           </div>
           {cardError && <p className="hover-card__error">{cardError}</p>}
           {!cardError && <>
-            {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__map-value"><span>{activeCategory.label}</span><strong>{mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric, language, t("unavailable"), tendencyLabels) : formatMetric(activeMetric, language, t("unavailable"))}</strong></div>}
-            <div className="hover-card__ces"><span>{t("culturalScore")}</span><strong>{formatCulturalScore(culturalScore, language, t("unavailable"))}</strong></div>
+            <div className="canton-summary">
+              <div className="canton-summary__stat"><span>{activeCategory.label}</span><strong>{mapMetric === "cultural_enrichment_score" ? formatCulturalScore(culturalScore, language, t("unavailable")) : mapMetric === "political_orientation_score" ? formatPoliticalTendency(activeMetric, language, t("unavailable"), tendencyLabels) : formatMetric(activeMetric, language, t("unavailable"))}</strong></div>
+              {selectedPoint
+                ? <CompassMiniature point={selectedPoint} spread={spread} title={t("cantonPosition", { canton: selectedCantonName ?? activeCode ?? "" })} />
+                : <p className="canton-summary__missing">{t(compass.data || compass.error ? "noCompassPosition" : "compassLoading")}</p>}
+              {pinnedCode && <button type="button" onClick={() => setCompassMode("cantons")}>{t("politicalCompass")}</button>}
+            </div>
+            {mapMetric !== "cultural_enrichment_score" && <div className="hover-card__ces"><span>{t("culturalScore")}</span><strong>{formatCulturalScore(culturalScore, language, t("unavailable"))}</strong></div>}
             <dl className="hover-card__facts">
               <div><dt>{t("population")}</dt><dd>{formatMetric(metrics.get("population_total"), language, t("unavailable"))}</dd></div>
               <div><dt>{t("crime")}</dt><dd>{formatMetric(metrics.get("crime_per_100000"), language, t("unavailable"))}</dd></div>
