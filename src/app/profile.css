@@ -619,6 +619,7 @@
   line-height: 1.15;
 }
 
+.canton-summary,
 .municipality-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -629,6 +630,7 @@
   background: #f6f8f9;
 }
 
+.canton-summary__stat span,
 .municipality-summary__stat span {
   display: block;
   color: #65727d;
@@ -638,6 +640,7 @@
   text-transform: uppercase;
 }
 
+.canton-summary__stat strong,
 .municipality-summary__stat strong {
   color: #172a3a;
   font-size: 22px;
@@ -645,11 +648,14 @@
   line-height: 1.2;
 }
 
+.canton-summary .compass-miniature,
+.canton-summary__missing,
 .municipality-summary .compass-miniature,
 .municipality-summary__missing {
   grid-row: span 2;
 }
 
+.canton-summary__missing,
 .municipality-summary__missing {
   align-self: center;
   width: 96px;
@@ -660,6 +666,7 @@
   text-align: center;
 }
 
+.canton-summary > button,
 .municipality-summary > button {
   align-self: start;
   min-height: 30px;
@@ -672,6 +679,8 @@
   font-weight: 700;
 }
 
+.canton-summary > button:hover,
+.canton-summary > button:focus-visible,
 .municipality-summary > button:hover,
 .municipality-summary > button:focus-visible {
   background: #a4212a;

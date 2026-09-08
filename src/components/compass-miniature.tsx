@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 const miniature = { center: 50, extent: 42, size: 100 };
 
 /**
- * The compact compass marks the selected municipality in its hover panel.
+ * The compact compass marks the selected canton or municipality in its hover panel.
  */
 export function CompassMiniature({ point, spread, title }: { point?: { x: number; y: number }; spread: CompassSpread; title: string }) {
   const { t } = useTranslation();
