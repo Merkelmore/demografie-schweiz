@@ -255,7 +255,7 @@ function CatalogExplorerContent() {
     <div className="map-page">
       <header className="site-header">
         <div className="site-header__identity">
-          <span className="site-brand">{t("siteName")}</span>
+          <h1 className="site-brand" style={{ margin: 0 }}>{t("siteName")}</h1>
           <label className="global-category global-category--desktop"><span>{t("map")}</span><select aria-label={t("map")} value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.label}</option>)}</select><ChevronDown size={14} /></label>
           <label className="global-category global-category--mobile"><MapIcon className="global-category__icon" size={15} /><select aria-label={t("map")} value={mapMetric} onChange={(event) => setMapMetric(event.target.value as CategoryCode)}>{categories.map((category) => <option key={category.code} value={category.code}>{category.shortLabel}</option>)}</select><ChevronDown size={14} /></label>
         </div>
@@ -275,7 +275,7 @@ function CatalogExplorerContent() {
         {isCardVisible && <aside ref={cardRef} className={`hover-card ${pinnedCode ? "hover-card--pinned" : ""}`} aria-live="polite" aria-label={t("cantonAction")} style={cardStyle} onPointerEnter={clearHoverTimer} onPointerLeave={leaveCanton}>
           <div className="hover-card__header">
             <div className="hover-card__identity">
-              <h1>{selectedCantonName ?? card?.selectedGeo.name ?? t("loading")}</h1>
+              <h2>{selectedCantonName ?? card?.selectedGeo.name ?? t("loading")}</h2>
               {pinnedCode && <div className="hover-card__quick-actions"><button type="button" onClick={openMunicipalityVotes}>{t("municipalityLevel")}</button></div>}
             </div>
             {pinnedCode && <button type="button" aria-label={t("closeCanton")} onClick={closeCantonCard}><X size={16} /></button>}
@@ -300,7 +300,7 @@ function CatalogExplorerContent() {
           </>}
         </aside>}
       </main>
-      <footer className="site-footer"><span>{t("mainFooter")}</span><a className="site-footer__support" href={githubSponsorsUrl} rel="noreferrer" target="_blank"><Heart aria-hidden="true" size={13} />{t("supportProject")}</a><span>2026</span></footer>
+      <footer className="site-footer"><span><a className="site-footer__methodology" href="/methodik" title={t("mainFooter")}>{t("methodologyAndSources")}</a></span><a className="site-footer__support" href={githubSponsorsUrl} rel="noreferrer" target="_blank"><Heart aria-hidden="true" size={13} />{t("supportProject")}</a><span>2026</span></footer>
       {isSourcesOpen && <div className="methodology-backdrop" role="presentation" onClick={() => setIsSourcesOpen(false)}><section className="methodology-dialog sources-dialog" role="dialog" aria-modal="true" aria-labelledby="sources-title" onClick={(event) => event.stopPropagation()}><div className="methodology-dialog__header"><div><span>{t("sourcesKicker")}</span><h2 id="sources-title">{t("sourcesTitle")}</h2></div><button type="button" aria-label={t("closeSources")} onClick={() => setIsSourcesOpen(false)}><X size={18} /></button></div>{sourcesError && <p className="hover-card__error">{sourcesError}</p>}{!sourcesError && !sources && <p className="sources-dialog__loading">{t("sourcesLoading")}</p>}{sources && <ul className="sources-list">{sources.map((source) => <li key={`${source.metric}:${source.title}:${source.url}`}><strong>{categories.find((category) => category.code === source.metricCode)?.label ?? source.metric}</strong><span>{source.title}{source.referenceDate ? ` · ${t("asOf", { date: source.referenceDate })}` : ""}</span>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{t("openSource")}</a> : <span className="sources-list__local">{t("localCalculation")}</span>}</li>)}</ul>}</section></div>}
       {compassMode && <PoliticalCompassModal mode={compassMode} onClose={() => setCompassMode(null)} />}
     </div>
