@@ -1,5 +1,13 @@
 # Cultural Enrichment Radar
 
+## Suchmaschinen und zitierbare Ergebnisse
+
+Die öffentliche Website heisst **Politik Kompass Schweiz**. Neben der interaktiven Karte gibt es statisch erzeugte Seiten unter `/politischer-kompass`, `/kantone`, `/kantone/[slug]`, `/methodik` und `/ueber-das-projekt`. Die Kantonsseiten enthalten die vorhandenen Gemeinde-Koordinaten und aus Stimmen aggregierte Abstimmungsergebnisse. Sie verwenden dieselben gespeicherten JSON-Snapshots wie die Karte, benötigen beim Aufruf kein JavaScript und keine Datenbank und bewahren Datenstände sowie Provisorisch-Hinweise.
+
+`/sitemap.xml` listet nur die kanonischen Inhaltsseiten. `/robots.txt` erlaubt Suchmaschinen und die dokumentierten Such-/Abrufagenten von OpenAI und Anthropic. Die Erreichbarkeit verbessert die Auffindbarkeit, garantiert aber weder Indexierung noch Rankings oder KI-Zitate. Es gibt keine zusätzlichen Tracking-Dienste, bezahlten SEO-Dienste oder künstlich aktualisierten Datumsangaben. Die Lese-Seiten sind deutsch; die Sprachwahl der bestehenden Karte bleibt erhalten. Es werden keine nicht existierenden Übersetzungen per hreflang ausgezeichnet.
+
+Nach einem Produktionsbuild den lokalen Server auf Port 3009 starten und `npm run test:seo` ausführen. Mit `SEO_BASE_URL` kann derselbe reine Lese-Test gegen eine andere geprüfte Umgebung laufen. Er prüft alle 31 Inhaltsseiten, Metadaten, JSON-LD, sämtliche Gemeinde-Koordinaten, kantonale Abstimmungsaggregate, Crawler-Zugriff, 404, WWW-Weiterleitung und Vorschaubild.
+
 Interaktiver Explorer fÃ¼r amtliche Schweizer Kennzahlen. Die Anwendung zeigt nur Werte mit dokumentierter Quelle, Datenstand und Geografieebene. Fehlende Gemeindewerte werden nicht geschÃ¤tzt und nicht durch Kantonswerte ersetzt.
 
 ## Production operations

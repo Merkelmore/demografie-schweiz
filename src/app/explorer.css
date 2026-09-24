@@ -231,6 +231,17 @@
   white-space: nowrap;
 }
 
+.site-footer__methodology {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.site-footer__methodology:hover,
+.site-footer__methodology:focus-visible {
+  color: var(--ink);
+}
+
 .site-footer__support {
   display: inline-flex;
   min-height: 22px;
