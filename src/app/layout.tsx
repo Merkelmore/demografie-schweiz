@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import { StructuredData } from "@/components/structured-data";
 import { absoluteUrl, siteDescription, siteName, siteUrl } from "@/lib/site";
+import { GTM_CONTAINER_ID, GTM_HEAD_SCRIPT } from "@/lib/google-tag-manager.mjs";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -29,7 +30,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className={`${dmSans.variable} ${fraunces.variable} h-full`}>
+      <head>
+        {/* Keep the supplied bootstrap in the initial head, before hydration. */}
+        <script id="google-tag-manager" dangerouslySetInnerHTML={{ __html: GTM_HEAD_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
+        <noscript>
+          <iframe src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`} height="0" width="0" style={{ display: "none", visibility: "hidden" }} title="Google Tag Manager" />
+        </noscript>
         <StructuredData data={{ "@context": "https://schema.org", "@type": "WebSite", "@id": absoluteUrl("/#website"), url: absoluteUrl(), name: siteName, description: siteDescription, inLanguage: "de-CH" }} />
         {children}
       </body>
