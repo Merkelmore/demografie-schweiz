@@ -23,6 +23,12 @@ pooler hostname. The public Supabase 2021 production CA is bundled in the
 container; the database password remains only in the protected environment
 file.
 
+## Google Tag Manager dependency
+
+The global root layout includes Google's supplied head bootstrap and body noscript fallback for public container `GTM-M9C9LKDH`. The browser loads `https://www.googletagmanager.com/gtm.js?id=GTM-M9C9LKDH`; the JavaScript-disabled fallback uses `https://www.googletagmanager.com/ns.html?id=GTM-M9C9LKDH`. No server secret or environment setting is needed. Tags published in Google's container are managed outside application releases; this release does not create GA4 tags, measurement IDs, custom events, consent configuration or the earlier local visitor-statistics draft.
+
+Verify exactly one bootstrap in the delivered head, the noscript fallback at the start of the body, one container request per document and no second bootstrap on client navigation. Also verify the actual public Google script response; an unpublished/missing container can return 404 even when the site's snippet is correct. Container/account changes belong in Google's protected settings. Before later analytics/advertising tags, review privacy disclosures and applicable consent requirements. Rollback to the previous app image removes these snippets; no database restore is required.
+
 ## Health check
 
 `/api/catalog/map?metric=population_total` must return HTTP 200 with data.
